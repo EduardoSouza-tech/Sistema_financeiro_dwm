@@ -5402,6 +5402,8 @@ window.limparFiltrosSessoesTabela = limparFiltrosSessoesTabela;
  *   Cancelada/Arquivada                       → sem alerta
  */
 function _calcPrazoAlerta(s, hoje) {
+    // Normaliza 'hoje' para meio-dia independente de como o chamador passou
+    hoje = new Date(hoje); hoje.setHours(12, 0, 0, 0);
     const status = s.status || 'rascunho';
     if (['cancelada', 'arquivada', 'concluida', 'entrega'].includes(status)) return null;
 
@@ -5527,7 +5529,7 @@ function renderSessoes(sessoes) {
 }
 
 // ─── KANBAN SESSÕES ───────────────────────────────────────────────────────────
-const KANBAN_LS_KEY = 'sessoes_kanban_cols_v2';
+const KANBAN_LS_KEY = 'sessoes_kanban_cols_v3';
 const DEFAULT_KANBAN_COLS = [
     { id: 'rascunho',          label: 'Rascunho',      cor: '#94a3b8', final: false },
     { id: 'agendada',          label: 'Agendada',       cor: '#3b82f6', final: false },

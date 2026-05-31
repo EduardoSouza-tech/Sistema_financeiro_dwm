@@ -2899,13 +2899,97 @@ function renderBotoesStatusSessao(sessao) {
                 </button>
             `;
             break;
+
+        case 'reagendada':
+            html += `
+                <button type="button" class="btn" style="background: #3b82f6; color: white; font-size: 13px; padding: 8px 16px;" onclick="confirmarSessao(${sessaoId})">
+                    📅 Confirmar Reagendamento
+                </button>
+                <button type="button" class="btn" style="background: #ef4444; color: white; font-size: 13px; padding: 8px 16px;" onclick="cancelarSessaoModal(${sessaoId})">
+                    ❌ Cancelar Sessão
+                </button>
+            `;
+            break;
+
+        case 'realizada':
+            html += `
+                <button type="button" class="btn" style="background: #0ea5e9; color: white; font-size: 13px; padding: 8px 16px;" onclick="_transicionarSessao(${sessaoId},'backup','💾','Iniciar Backup')">
+                    💾 Iniciar Backup
+                </button>
+                <button type="button" class="btn" style="background: #ef4444; color: white; font-size: 13px; padding: 8px 16px;" onclick="cancelarSessaoModal(${sessaoId})">
+                    ❌ Cancelar Sessão
+                </button>
+            `;
+            break;
+
+        case 'backup':
+            html += `
+                <button type="button" class="btn" style="background: #8b5cf6; color: white; font-size: 13px; padding: 8px 16px;" onclick="_transicionarSessao(${sessaoId},'tratamento_de_cor','🎨','Iniciar Trat. de Cor')">
+                    🎨 Iniciar Trat. de Cor
+                </button>
+                <button type="button" class="btn" style="background: #ef4444; color: white; font-size: 13px; padding: 8px 16px;" onclick="cancelarSessaoModal(${sessaoId})">
+                    ❌ Cancelar Sessão
+                </button>
+            `;
+            break;
+
+        case 'tratamento_de_cor':
+            html += `
+                <button type="button" class="btn" style="background: #7c3aed; color: white; font-size: 13px; padding: 8px 16px;" onclick="_transicionarSessao(${sessaoId},'tratamento_final','✨','Iniciar Trat. Final')">
+                    ✨ Iniciar Trat. Final
+                </button>
+                <button type="button" class="btn" style="background: #ef4444; color: white; font-size: 13px; padding: 8px 16px;" onclick="cancelarSessaoModal(${sessaoId})">
+                    ❌ Cancelar Sessão
+                </button>
+            `;
+            break;
+
+        case 'tratamento_final':
+            html += `
+                <button type="button" class="btn" style="background: #14b8a6; color: white; font-size: 13px; padding: 8px 16px;" onclick="_transicionarSessao(${sessaoId},'entrega','📦','Enviar para Entrega')">
+                    📦 Enviar para Entrega
+                </button>
+                <button type="button" class="btn" style="background: #ef4444; color: white; font-size: 13px; padding: 8px 16px;" onclick="cancelarSessaoModal(${sessaoId})">
+                    ❌ Cancelar Sessão
+                </button>
+            `;
+            break;
+
+        case 'entrega':
+            html += `
+                <button type="button" class="btn" style="background: #059669; color: white; font-size: 13px; padding: 8px 16px;" onclick="concluirSessaoModal(${sessaoId})">
+                    🏁 Concluir Sessão
+                </button>
+                <button type="button" class="btn" style="background: #f59e0b; color: white; font-size: 13px; padding: 8px 16px;" onclick="_transicionarSessao(${sessaoId},'alteracao','🔁','Solicitar Alteração')">
+                    🔁 Solicitar Alteração
+                </button>
+            `;
+            break;
+
+        case 'alteracao':
+            html += `
+                <button type="button" class="btn" style="background: #14b8a6; color: white; font-size: 13px; padding: 8px 16px;" onclick="_transicionarSessao(${sessaoId},'entrega','📦','Reenviar para Entrega')">
+                    📦 Reenviar para Entrega
+                </button>
+                <button type="button" class="btn" style="background: #059669; color: white; font-size: 13px; padding: 8px 16px;" onclick="concluirSessaoModal(${sessaoId})">
+                    🏁 Concluir Direto
+                </button>
+                <button type="button" class="btn" style="background: #ef4444; color: white; font-size: 13px; padding: 8px 16px;" onclick="cancelarSessaoModal(${sessaoId})">
+                    ❌ Cancelar Sessão
+                </button>
+            `;
+            break;
+
+        case 'arquivada':
+            // Sessão arquivada — apenas exibe badge, sem ações
+            break;
     }
     
     return html;
 }
 
 /**
- * Confirma/Agenda uma sessão (rascunho → agendada)
+ * Confirma/Agenda uma sessão (rascunho/reagendada → agendada)
  */
 async function confirmarSessao(sessaoId) {
     if (!confirm('📅 Confirmar esta sessão?\n\nStatus será alterado para AGENDADA.')) {
@@ -2936,10 +3020,10 @@ async function confirmarSessao(sessaoId) {
 }
 
 /**
- * Inicia uma sessão (agendada → em_andamento)
+ * Inicia uma sessão (agendada → realizada)
  */
 async function iniciarSessao(sessaoId) {
-    if (!confirm('▶️ Iniciar esta sessão?\n\nStatus será alterado para EM ANDAMENTO.')) {
+    if (!confirm('▶️ Marcar sessão como Realizada?\n\nA captação aconteceu e deu tudo certo.')) {
         return;
     }
     
@@ -2947,7 +3031,7 @@ async function iniciarSessao(sessaoId) {
         const response = await fetch(`/api/sessoes/${sessaoId}/status`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: 'em_andamento' })
+            body: JSON.stringify({ status: 'realizada' })
         });
         
         const result = await response.json();
@@ -2961,10 +3045,37 @@ async function iniciarSessao(sessaoId) {
             showToast('❌ Erro: ' + (result.message || result.error || 'Erro desconhecido'), 'error');
         }
     } catch (error) {
-        console.error('❌ Erro ao iniciar sessão:', error);
+        console.error('❌ Erro ao marcar sessão como realizada:', error);
         showToast('❌ Erro: ' + error.message, 'error');
     }
 }
+
+/**
+ * Transição genérica de status (usado pelos novos botoes de fase de edição/entrega)
+ */
+async function _transicionarSessao(sessaoId, novoStatus, emoji, label) {
+    if (!confirm(`${emoji} ${label}?\n\nO status da sessão será atualizado.`)) return;
+    try {
+        const response = await fetch(`/api/sessoes/${sessaoId}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: novoStatus })
+        });
+        const result = await response.json();
+        if (response.ok && result.success) {
+            showToast(`✅ Status atualizado: ${label}`, 'success');
+            closeModal();
+            if (typeof loadSessoes === 'function') loadSessoes();
+            if (typeof refreshAgendaFotografia === 'function') refreshAgendaFotografia();
+        } else {
+            showToast('❌ Erro: ' + (result.message || result.error || 'Erro desconhecido'), 'error');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao transicionar sessão:', error);
+        showToast('❌ Erro: ' + error.message, 'error');
+    }
+}
+window._transicionarSessao = _transicionarSessao;
 
 /**
  * Cancela uma sessão
