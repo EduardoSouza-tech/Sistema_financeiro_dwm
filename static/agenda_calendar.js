@@ -440,7 +440,109 @@ function getStatusText(sessao) {
  */
 function handleEventClick(event) {
     const sessao = event.extendedProps.sessao;
-    editarSessao(sessao.id);
+    _abrirPopoverAgenda(sessao, event);
+}
+
+/**
+ * Abre popover contextual no click do card da agenda.
+ * Mostra status fase-aware com cor de prazo + ações rápidas.
+ */
+function _abrirPopoverAgenda(sessao, fcEvent) {
+    // Remove popover anterior se existir
+    const old = document.getElementById('agenda-popover');
+    if (old) old.remove();
+
+    const prazoCor  = getStatusColor(sessao);           // cor de prazo (fase-aware)
+    const prazoText = getStatusText(sessao);             // texto de prazo (fase-aware)
+
+    // Badge do status atual (nome da fase/kanban)
+    const KANBAN_LABELS = {
+        rascunho:'Rascunho', agendada:'Agendada', reagendada:'Reagendada',
+        realizada:'Realizada', backup:'Backup', tratamento_de_cor:'Trat. de Cor',
+        tratamento_final:'Trat. Final', entrega:'Entrega', concluida:'Concluída',
+        alteracao:'Alteração', cancelada:'Cancelada', arquivada:'Arquivada',
+        em_andamento:'Em Andamento', finalizada:'Finalizada', reaberta:'Reaberta',
+    };
+    const KANBAN_CORES = {
+        rascunho:'#94a3b8', agendada:'#3b82f6', reagendada:'#f97316',
+        realizada:'#10b981', backup:'#0ea5e9', tratamento_de_cor:'#8b5cf6',
+        tratamento_final:'#7c3aed', entrega:'#14b8a6', concluida:'#059669',
+        alteracao:'#f59e0b', cancelada:'#ef4444', arquivada:'#475569',
+        em_andamento:'#f59e0b', finalizada:'#10b981', reaberta:'#8b5cf6',
+    };
+    const statusKanbanCor   = KANBAN_CORES[sessao.status] || '#95a5a6';
+    const statusKanbanLabel = KANBAN_LABELS[sessao.status] || sessao.status;
+
+    const clienteNome = sessao.cliente_nome_fantasia || sessao.cliente_nome || '—';
+    const dataFmt     = sessao.data ? new Date(sessao.data + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
+    const prazoFmt    = sessao.prazo_entrega ? new Date(sessao.prazo_entrega + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
+
+    const popover = document.createElement('div');
+    popover.id = 'agenda-popover';
+    popover.style.cssText = `
+        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        background: white; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,.22);
+        z-index: 9999; width: 320px; overflow: hidden; font-family: inherit;
+    `;
+    popover.innerHTML = `
+        <!-- Cabeçalho colorido com cor de prazo -->
+        <div style="background:${prazoCor}; padding:14px 16px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <div style="color:white; font-weight:700; font-size:15px;">${clienteNome}</div>
+                <div style="color:rgba(255,255,255,.85); font-size:12px; margin-top:2px;">📅 ${dataFmt} ${sessao.horario ? '· ' + sessao.horario : ''}</div>
+            </div>
+            <button id="agenda-popover-close"
+                style="background:rgba(255,255,255,.2);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;color:white;font-size:16px;line-height:1;flex-shrink:0;">×</button>
+        </div>
+        <!-- Corpo -->
+        <div style="padding:14px 16px; font-size:13px; color:#334155;">
+            <!-- Badges lado a lado: kanban + prazo -->
+            <div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+                <span style="background:${statusKanbanCor};color:white;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;">
+                    ${statusKanbanLabel}
+                </span>
+                <span style="background:${prazoCor};color:white;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;">
+                    ⏱ ${prazoText}
+                </span>
+            </div>
+            ${sessao.endereco ? `<div style="margin-bottom:6px;">📍 <strong>Local:</strong> ${sessao.endereco}</div>` : ''}
+            <div style="margin-bottom:6px;">📦 <strong>Prazo de entrega:</strong> ${prazoFmt}</div>
+            ${sessao.descricao ? `<div style="margin-bottom:6px; color:#64748b; font-style:italic;">${sessao.descricao}</div>` : ''}
+        </div>
+        <!-- Ações -->
+        <div style="padding:10px 16px 14px; display:flex; gap:8px; border-top:1px solid #f1f5f9;">
+            <button id="agenda-popover-edit"
+                style="flex:1;padding:9px;background:#3b82f6;color:white;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;">
+                ✏️ Editar Sessão
+            </button>
+            <button id="agenda-popover-status"
+                style="flex:1;padding:9px;background:#f1f5f9;color:#374151;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;">
+                🔄 Mudar Status
+            </button>
+        </div>
+    `;
+
+    // Overlay de fundo
+    const overlay = document.createElement('div');
+    overlay.id = 'agenda-popover-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:9998;';
+    document.body.appendChild(overlay);
+    document.body.appendChild(popover);
+
+    const fechar = () => {
+        popover.remove();
+        overlay.remove();
+    };
+    overlay.onclick = fechar;
+    document.getElementById('agenda-popover-close').onclick = fechar;
+    document.getElementById('agenda-popover-edit').onclick = () => {
+        fechar();
+        if (typeof editarSessao === 'function') editarSessao(sessao.id);
+    };
+    document.getElementById('agenda-popover-status').onclick = () => {
+        fechar();
+        if (typeof atualizarStatusSessao === 'function') atualizarStatusSessao(sessao.id);
+    };
 }
 
 /**

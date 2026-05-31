@@ -5529,19 +5529,24 @@ function renderSessoes(sessoes) {
 }
 
 // ─── KANBAN SESSÕES ───────────────────────────────────────────────────────────
-const KANBAN_LS_KEY = 'sessoes_kanban_cols_v3';
+const KANBAN_LS_KEY = 'sessoes_kanban_cols_v4';
 const DEFAULT_KANBAN_COLS = [
     { id: 'rascunho',          label: 'Rascunho',      cor: '#94a3b8', final: false },
     { id: 'agendada',          label: 'Agendada',       cor: '#3b82f6', final: false },
-    { id: 'reagendada',        label: 'Reagendada',     cor: '#f97316', final: false },
+    { id: 'reagendada',        label: 'Reagendada',     cor: '#f97316', final: false, hidden: true },
     { id: 'realizada',         label: 'Realizada',      cor: '#10b981', final: false },
     { id: 'backup',            label: 'Backup',         cor: '#0ea5e9', final: false },
     { id: 'tratamento_de_cor', label: 'Trat. de Cor',   cor: '#8b5cf6', final: false },
     { id: 'tratamento_final',  label: 'Trat. Final',    cor: '#7c3aed', final: false },
     { id: 'entrega',           label: 'Entrega',        cor: '#14b8a6', final: false },
-    { id: 'concluida',         label: 'Concluída',      cor: '#059669', final: true  },
-    { id: 'alteracao',         label: 'Alteração',     cor: '#f59e0b', final: false },
-    { id: 'arquivada',         label: 'Arquivadas',     cor: '#475569', final: true, archived: true },
+    { id: 'concluida',         label: 'Concluída',      cor: '#059669', final: true,
+        gera_historico: true, historico_descricao: 'Material entregue ao cliente' },
+    { id: 'alteracao',         label: 'Alteração',      cor: '#f59e0b', final: false,
+        gera_historico: true, historico_descricao: 'Solicitação de alteração registrada' },
+    { id: 'cancelada',         label: 'Cancelada',      cor: '#ef4444', final: false, hidden: true,
+        gera_historico: true, historico_descricao: 'Sessão cancelada' },
+    { id: 'arquivada',         label: 'Arquivadas',     cor: '#475569', final: true, archived: true,
+        gera_historico: true, historico_descricao: 'Sessão arquivada' },
 ];
 
 let _sessaoViewMode = 'kanban';
@@ -5565,6 +5570,11 @@ function getKanbanCols() {
     if (!cols.find(c => c.archived)) {
         const defaultArq = DEFAULT_KANBAN_COLS.find(c => c.archived);
         if (defaultArq) cols = [...cols, { ...defaultArq, ordem: cols.length }];
+    }
+    // Garante que a coluna cancelada SEMPRE existe — necessária para filtro
+    if (!cols.find(c => c.id === 'cancelada')) {
+        const defaultCan = DEFAULT_KANBAN_COLS.find(c => c.id === 'cancelada');
+        if (defaultCan) cols = [...cols, { ...defaultCan, ordem: cols.length }];
     }
     return cols;
 }
@@ -5596,8 +5606,11 @@ function renderKanban(sessoes) {
     const hoje = new Date();
     const QUINZE_DIAS_MS = 15 * 24 * 60 * 60 * 1000;
 
-    // Sessões "canceladas" não aparecem no board principal
-    const activeSessoes = (sessoes || []).filter(s => s.status !== 'cancelada');
+    // Ler estado de visibilidade de colunas ocultas (default = ocultas)
+    const _mostrarOcultas = localStorage.getItem('kanban_mostrar_ocultas') === '1';
+
+    // Sessões "canceladas" só aparecem se as colunas ocultas estiverem visíveis
+    const activeSessoes = (sessoes || []).filter(s => _mostrarOcultas ? true : s.status !== 'cancelada');
 
     // Auto-arquivamento: concluída há 15+ dias → trata como arquivada visualmente
     // E dispara silenciosamente a atualização no servidor (uma vez por sessão)
@@ -5660,7 +5673,27 @@ function renderKanban(sessoes) {
         }
     }
 
-    board.innerHTML = cols.map(col => {
+    // Calcular contagem de sessões em colunas ocultas (para exibir no botão de toggle)
+    const _hiddenCols = cols.filter(c => c.hidden && !c.archived);
+    const _hiddenCount = _hiddenCols.reduce((acc, col) => {
+        return acc + (_colItemsMap.get(col.id) || []).length;
+    }, 0);
+
+    // Botão de toggle de colunas ocultas
+    const _toggleBtn = `
+        <div style="display:flex;align-items:center;justify-content:flex-end;padding:6px 0 10px 0;gap:8px;flex-shrink:0;min-width:max-content;">
+            ${!_mostrarOcultas && _hiddenCount > 0 ? `<span style="font-size:11px;background:#f1f5f9;color:#64748b;border-radius:10px;padding:2px 8px;">${_hiddenCount} sessão(ões) ocultas</span>` : ''}
+            <button onclick="toggleKanbanColsOcultas()"
+                title="${_mostrarOcultas ? 'Ocultar colunas especiais' : 'Mostrar colunas: Reagendada, Cancelada e similares'}"
+                style="padding:5px 12px;background:${_mostrarOcultas ? '#6366f1' : '#f1f5f9'};color:${_mostrarOcultas ? 'white' : '#475569'};border:1px solid ${_mostrarOcultas ? '#6366f1' : '#e2e8f0'};border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;">
+                ${_mostrarOcultas ? '👁 Ocultar colunas especiais' : '👁 Mostrar Reagendada / Cancelada'}
+            </button>
+        </div>`;
+
+    // Filtrar colunas: se _mostrarOcultas=false, esconder colunas com hidden:true
+    const _colsVisiveis = cols.filter(col => _mostrarOcultas ? true : !col.hidden);
+
+    board.innerHTML = _toggleBtn + _colsVisiveis.map(col => {
         const items = _colItemsMap.get(col.id) || [];
 
         // Auto-expandir coluna arquivada se há sessões sendo arquivadas agora
@@ -5678,15 +5711,15 @@ function renderKanban(sessoes) {
                 ? `<div class="kanban-empty">${emptyMsg}</div>`
                 : items.map(s => renderKanbanCard(s, col, hoje)).join('');
 
-        const colClass = col.archived ? 'kanban-col kanban-col-arquivada' : 'kanban-col';
+        const colClass = col.archived ? 'kanban-col kanban-col-arquivada' : (col.hidden ? 'kanban-col kanban-col-hidden' : 'kanban-col');
 
         return `<div class="${colClass}" data-col-id="${escapeHtml(col.id)}"
                     ondragover="event.preventDefault();this.classList.add('kanban-col-drag-over')"
                     ondragleave="this.classList.remove('kanban-col-drag-over')"
                     ondrop="onKanbanDrop(event,'${escapeHtml(col.id)}')">
-                <div class="kanban-col-header" style="background:${col.cor}; cursor:${col.archived ? 'pointer' : 'default'};"
+                <div class="kanban-col-header" style="background:${col.cor}; cursor:${(col.archived || col.hidden) ? 'pointer' : 'default'}; ${col.hidden ? 'opacity:0.85;' : ''}"
                      ${col.archived ? `onclick="toggleArquivadasCol()"` : ''}>
-                    <span>${col.archived ? '🗂️ ' : ''}${escapeHtml(col.label)}</span>
+                    <span>${col.archived ? '🗂️ ' : col.hidden ? '🔸 ' : ''}${escapeHtml(col.label)}</span>
                     <div style="display:flex;align-items:center;gap:4px;">
                         <span class="kanban-col-count">${items.length}</span>
                         <button onclick="event.stopPropagation();_editarColuna('${escapeHtml(col.id)}')"
@@ -5712,6 +5745,13 @@ function toggleArquivadasCol() {
     localStorage.setItem(`kanban_col_collapsed_${colId}`, nowExpanded ? '1' : '0');
     renderKanban(_todasSessoesCache);
 }
+
+function toggleKanbanColsOcultas() {
+    const atual = localStorage.getItem('kanban_mostrar_ocultas') === '1';
+    localStorage.setItem('kanban_mostrar_ocultas', atual ? '0' : '1');
+    renderKanban(_todasSessoesCache);
+}
+window.toggleKanbanColsOcultas = toggleKanbanColsOcultas;
 
 function _fmtDataKanban(v) {
     if (!v) return null;
@@ -5904,9 +5944,47 @@ async function onKanbanDrop(event, colId) {
             body: JSON.stringify({ status: colId, force: true })
         });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
+
+        // Registrar histórico se a coluna destino tiver atributo gera_historico
+        const cols = getKanbanCols();
+        const colDef = cols.find(c => c.id === colId);
+        if (colDef && colDef.gera_historico) {
+            _registrarHistoricoStatus(sessaoId, colId, colDef.historico_descricao || `Status alterado para ${colDef.label}`);
+        }
     } catch(e) {
         console.error('Erro ao mover sessão:', e);
         await loadSessoes();
+    }
+}
+
+// ─── HISTÓRICO POR STATUS DE COLUNA ──────────────────────────────────────────
+/**
+ * Registra uma entrada de histórico na sessão quando o status muda para uma
+ * coluna com gera_historico: true (concluida, cancelada, arquivada, alteracao).
+ * Atualiza o campo `observacoes` da sessão com um log de data + descrição.
+ */
+async function _registrarHistoricoStatus(sessaoId, novoStatus, descricao) {
+    try {
+        const agora = new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+        const entrada = `\n[${agora}] ${descricao}`;
+
+        // Buscar sessão atual para acumular no campo observações
+        const r = await fetch(`/api/sessoes/${sessaoId}`);
+        if (!r.ok) return;
+        const data = await r.json();
+        const sessaoAtual = data.sessao || data;
+        const obsAtual = sessaoAtual.observacoes || '';
+
+        // Salvar observações atualizadas
+        await fetch(`/api/sessoes/${sessaoId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ observacoes: obsAtual + entrada })
+        });
+
+        console.log(`📋 Histórico registrado (${novoStatus}): ${entrada.trim()}`);
+    } catch(e) {
+        console.warn('Aviso: não foi possível registrar histórico de status:', e);
     }
 }
 

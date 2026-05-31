@@ -3217,7 +3217,6 @@ async function openModalSessao(sessaoEdit = null) {
     const modal = createModal(titulo, `
         <form id="form-sessao" onsubmit="salvarSessao(event)" style="max-height: 85vh; overflow-y: auto;">
             <input type="hidden" id="sessao-id" value="${isEdit ? sessaoEdit.id : ''}">
-            <input type="hidden" id="sessao-status" value="${(isEdit || isDuplicando) ? (isDuplicando ? 'rascunho' : (sessaoEdit.status || 'rascunho')) : 'rascunho'}">
             
             <!-- Linha 1: Cliente e Contrato -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
@@ -3362,6 +3361,41 @@ async function openModalSessao(sessaoEdit = null) {
                 </div>
             </div>
             
+            <!-- Seção: Status da Sessão -->
+            <div class="form-group" style="margin-top: 20px;">
+                <label style="font-size: 18px; font-weight: bold; color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 5px; display:block; margin-bottom: 10px;">
+                    🏷️ Status da Sessão
+                </label>
+                <div style="display: flex; align-items: center; gap: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px;">
+                    <div id="sessao-status-badge-preview" style="padding: 5px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; color: white; white-space: nowrap; background: #94a3b8;">
+                        Rascunho
+                    </div>
+                    <select id="sessao-status-select"
+                        style="flex:1; padding: 8px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 13px; background: white;"
+                        onchange="_onStatusSelectChange(this)">
+                        <optgroup label="— Captação —">
+                            <option value="rascunho">📝 Rascunho</option>
+                            <option value="agendada">📅 Agendada</option>
+                            <option value="reagendada">🔄 Reagendada</option>
+                            <option value="realizada">✅ Realizada</option>
+                            <option value="cancelada">❌ Cancelada</option>
+                        </optgroup>
+                        <optgroup label="— Edição —">
+                            <option value="backup">💾 Backup</option>
+                            <option value="tratamento_de_cor">🎨 Trat. de Cor</option>
+                            <option value="tratamento_final">✨ Trat. Final</option>
+                        </optgroup>
+                        <optgroup label="— Entrega —">
+                            <option value="entrega">📦 Entrega</option>
+                            <option value="concluida">🏁 Concluída</option>
+                            <option value="alteracao">🔁 Alteração</option>
+                            <option value="arquivada">🗂️ Arquivada</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <input type="hidden" id="sessao-status" value="${(isEdit || isDuplicando) ? (isDuplicando ? 'rascunho' : (sessaoEdit.status || 'rascunho')) : 'rascunho'}">
+            </div>
+            
             <!-- Seção: Observações -->
             <div class="form-group">
                 <label>Observações Adicionais:</label>
@@ -3438,6 +3472,16 @@ async function openModalSessao(sessaoEdit = null) {
             configurarEventosTags();
         }, 100);
     }
+
+    // Sincronizar dropdown de status com o valor inicial (always)
+    setTimeout(() => {
+        const statusHidden = document.getElementById('sessao-status');
+        const statusSelect = document.getElementById('sessao-status-select');
+        if (statusHidden && statusSelect) {
+            statusSelect.value = statusHidden.value || 'rascunho';
+            _atualizarBadgeStatusModal(statusHidden.value || 'rascunho');
+        }
+    }, 110);
 }
 
 function _formatarMoedaBRL(input) {
@@ -3447,6 +3491,68 @@ function _formatarMoedaBRL(input) {
     input.value = num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 window._formatarMoedaBRL = _formatarMoedaBRL;
+
+// ─── STATUS DROPDOWN MODAL SESSÃO ─────────────────────────────────────────────
+
+const _KANBAN_CORES_MODAL = {
+    rascunho:'#94a3b8', agendada:'#3b82f6', reagendada:'#f97316',
+    realizada:'#10b981', backup:'#0ea5e9', tratamento_de_cor:'#8b5cf6',
+    tratamento_final:'#7c3aed', entrega:'#14b8a6', concluida:'#059669',
+    alteracao:'#f59e0b', cancelada:'#ef4444', arquivada:'#475569',
+    em_andamento:'#f59e0b', finalizada:'#10b981', reaberta:'#8b5cf6',
+};
+const _KANBAN_LABELS_MODAL = {
+    rascunho:'Rascunho', agendada:'Agendada', reagendada:'Reagendada',
+    realizada:'Realizada', backup:'Backup', tratamento_de_cor:'Trat. de Cor',
+    tratamento_final:'Trat. Final', entrega:'Entrega', concluida:'Concluída',
+    alteracao:'Alteração', cancelada:'Cancelada', arquivada:'Arquivada',
+    em_andamento:'Em Andamento', finalizada:'Finalizada', reaberta:'Reaberta',
+};
+
+function _atualizarBadgeStatusModal(status) {
+    const badge = document.getElementById('sessao-status-badge-preview');
+    if (!badge) return;
+    const cor   = _KANBAN_CORES_MODAL[status]  || '#94a3b8';
+    const label = _KANBAN_LABELS_MODAL[status] || status;
+    badge.style.background = cor;
+    badge.textContent = label;
+}
+
+function _onStatusSelectChange(selectEl) {
+    const novoStatus = selectEl.value;
+    // Atualiza hidden input
+    const hidden = document.getElementById('sessao-status');
+    if (hidden) hidden.value = novoStatus;
+    // Atualiza badge de preview
+    _atualizarBadgeStatusModal(novoStatus);
+
+    // Se editando (tem id), salvar imediatamente no servidor
+    const sessaoId = document.getElementById('sessao-id') ? parseInt(document.getElementById('sessao-id').value) : null;
+    if (sessaoId) {
+        fetch(`/api/sessoes/${sessaoId}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: novoStatus, force: true })
+        })
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            // Atualiza cache local se existir
+            if (window._todasSessoesCache) {
+                const s = window._todasSessoesCache.find(x => x.id === sessaoId);
+                if (s) s.status = novoStatus;
+            }
+            if (typeof showNotification === 'function')
+                showNotification(`✅ Status alterado para "${_KANBAN_LABELS_MODAL[novoStatus] || novoStatus}"`, 'success');
+        })
+        .catch(err => {
+            console.error('Erro ao atualizar status:', err);
+            if (typeof showNotification === 'function')
+                showNotification('❌ Erro ao atualizar status', 'error');
+        });
+    }
+}
+window._onStatusSelectChange = _onStatusSelectChange;
+window._atualizarBadgeStatusModal = _atualizarBadgeStatusModal;
 
 function _parsePessoaId(rawVal) {
     // rawVal format: "func_123", "cli_456", "forn_789" or legacy plain integer
