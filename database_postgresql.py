@@ -5076,8 +5076,10 @@ def atualizar_contrato(contrato_id: int, dados: Dict) -> bool:
     # Preparar observações com todos os dados adicionais
     empresa_id = dados.get('empresa_id') or _get_empresa_id_from_session()
 
-    # Preservar historico_mensal existente para não perder ao salvar edição do contrato
+    # Preservar campos raiz de observacoes para não perder ao salvar edição do contrato
     historico_mensal_existente = dados.get('historico_mensal')
+    horas_acumuladas_inicial_existente = dados.get('horas_acumuladas_inicial')
+    horas_acumuladas_atual_existente = dados.get('horas_acumuladas_atual')
     if historico_mensal_existente is None:
         try:
             with get_db_connection(empresa_id=empresa_id) as conn_r:
@@ -5087,6 +5089,10 @@ def atualizar_contrato(contrato_id: int, dados: Dict) -> bool:
                 if row_r and row_r['observacoes']:
                     obs_atual = json.loads(row_r['observacoes'])
                     historico_mensal_existente = obs_atual.get('historico_mensal', {})
+                    if horas_acumuladas_inicial_existente is None:
+                        horas_acumuladas_inicial_existente = obs_atual.get('horas_acumuladas_inicial', 0)
+                    if horas_acumuladas_atual_existente is None:
+                        horas_acumuladas_atual_existente = obs_atual.get('horas_acumuladas_atual', 0)
         except Exception:
             historico_mensal_existente = {}
 
@@ -5104,6 +5110,8 @@ def atualizar_contrato(contrato_id: int, dados: Dict) -> bool:
         'imposto': dados.get('imposto'),
         'comissoes': dados.get('comissoes', []),
         'historico_mensal': historico_mensal_existente or {},
+        'horas_acumuladas_inicial': horas_acumuladas_inicial_existente or 0,
+        'horas_acumuladas_atual':   horas_acumuladas_atual_existente or 0,
     }
     observacoes_json = json.dumps(observacoes_dict)
 

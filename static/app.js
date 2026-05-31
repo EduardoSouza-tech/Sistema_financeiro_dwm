@@ -5223,8 +5223,17 @@ function renderContratos(contratos) {
             tbody.innerHTML = '<tr><td colspan="11" style="text-align: center;">Nenhum contrato cadastrado</td></tr>';
             return;
         }
+
+        // Ordenar: contratos com horas acumuladas > 0 primeiro
+        const sorted = [...contratos].sort((a, b) => {
+            const hA = parseFloat(a.horas_acumuladas_atual || 0);
+            const hB = parseFloat(b.horas_acumuladas_atual || 0);
+            if (hA > 0 && hB <= 0) return -1;
+            if (hB > 0 && hA <= 0) return 1;
+            return 0;
+        });
         
-        contratos.forEach(contrato => {
+        sorted.forEach(contrato => {
             const tr = document.createElement('tr');
             
             // Preparar dados
@@ -5235,6 +5244,12 @@ function renderContratos(contratos) {
             // valor vem como string "21000.00" do banco, precisa converter primeiro
             const valorTotal = parseFloat(contrato.valor_total || contrato.valor || 0);
             const valorMensal = parseFloat(contrato.valor_mensal || 0);
+            
+            // Badge horas acumuladas (mensal com saldo)
+            const horasAcum = parseFloat(contrato.horas_acumuladas_atual || 0);
+            const horasAcumBadge = (horasAcum > 0 && (contrato.tipo || '').toLowerCase() !== 'único')
+                ? `<span title="${horasAcum.toFixed(1)}h acumuladas disponíveis" style="display:inline-block;background:#dbeafe;color:#1d4ed8;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;margin-left:4px;">✦ ${horasAcum.toFixed(1)}h</span>`
+                : '';
             
             console.log(`📊 Contrato ${contrato.numero}:`, {
                 valor_total_raw: contrato.valor_total,
@@ -5248,7 +5263,7 @@ function renderContratos(contratos) {
             
             tr.innerHTML = `
                 <td>${escapeHtml(contrato.numero || '-')}</td>
-                <td>${escapeHtml(contrato.cliente_nome_fantasia || contrato.cliente_nome || '-')}</td><!-- REGRA: nome_fantasia > razao_social -->
+                <td>${escapeHtml(contrato.cliente_nome_fantasia || contrato.cliente_nome || '-')}${horasAcumBadge}</td><!-- REGRA: nome_fantasia > razao_social -->
                 <td><span class="badge" style="background: #3498db; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px;">${escapeHtml(contrato.tipo || '-')}</span></td>
                 <td>${escapeHtml(contrato.nome || contrato.descricao || '-')}</td>
                 <td>${formatarMoeda(valorMensal)}</td>
@@ -6143,6 +6158,8 @@ async function verHistoricoContrato(contratoId) {
         const horasTotaisContrato = parseFloat(contrato.horas_totais || 0);
         const valorMensal = parseFloat(contrato.valor_mensal || 0);
         const semNF = contrato.sem_nf === true;
+        // Horas acumuladas: ponto de partida (horas de contratos anteriores ou bônus)
+        let horasAcumuladas = parseFloat(contrato.horas_acumuladas_inicial || 0);
 
         const fmt     = v => parseFloat(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         const hoje    = new Date(); hoje.setHours(0, 0, 0, 0);
@@ -6235,9 +6252,22 @@ async function verHistoricoContrato(contratoId) {
 
                 // Sessions deste mês (não canceladas)
                 const sessMes = sessoes.filter(s => (s.data || '').substring(0, 7) === mesKey && s.status !== 'cancelada');
-                const horasUsadas   = sessMes.reduce((a, s) => a + parseFloat(s.quantidade_horas || 0), 0);
-                const horasExtras   = horasMensais > 0 ? Math.max(0, horasUsadas - horasMensais) : 0;
-                const horasSobrando = horasMensais > 0 ? Math.max(0, horasMensais - horasUsadas) : 0;
+
+                // ── Horas acumuladas e ajuste manual ──────────────────────
+                const horasAjuste        = (estado.horas_ajuste != null) ? parseFloat(estado.horas_ajuste) : null;
+                const valorMesOverride   = (estado.valor_mes   != null) ? parseFloat(estado.valor_mes)    : null;
+                const sessoes_entrega_mes = estado.sessoes_entrega || {};
+
+                const horasUsadasSessoes = sessMes.reduce((a, s) => a + parseFloat(s.quantidade_horas || 0), 0);
+                const horasUsadas   = horasAjuste !== null ? horasAjuste : horasUsadasSessoes;
+                const horasEntrada  = horasAcumuladas; // horas acumuladas vindas dos meses anteriores
+
+                const horasDisponiveis = horasMensais > 0 && !pulado ? horasMensais + horasEntrada : 0;
+                const horasExtras   = horasDisponiveis > 0 ? Math.max(0, horasUsadas - horasDisponiveis) : 0;
+                const horasSobrando = horasDisponiveis > 0 ? Math.max(0, horasDisponiveis - horasUsadas) : 0;
+
+                // Atualiza acumuladas para o próximo mês (mês pulado = não consome nem acumula)
+                if (!pulado) horasAcumuladas = horasSobrando;
 
                 // ── Paleta de status ───────────────────────────────────────
                 const NF_DISPLAY = {
@@ -6309,7 +6339,9 @@ async function verHistoricoContrato(contratoId) {
 
                 meses.push({ mesKey, mesLabel, isPast, isCurrent, pulado, nfEmitida, pago,
                              nfStatusManual, pagStatusManual, entStatusManual, dataPagamento,
-                             sessMes, horasUsadas, horasExtras, horasSobrando,
+                             sessMes, horasUsadas, horasUsadasSessoes, horasAjuste, valorMesOverride,
+                             horasEntrada, horasDisponiveis, horasExtras, horasSobrando,
+                             sessoes_entrega_mes,
                              nfStatus, nfColor, nfBg,
                              pagStatus, pagColor, pagBg,
                              entStatus, entColor, entBg,
@@ -6323,6 +6355,10 @@ async function verHistoricoContrato(contratoId) {
         const horasTotalUsadas = isUnico
             ? sessoes.filter(s => s.status !== 'cancelada').reduce((a, s) => a + parseFloat(s.quantidade_horas || 0), 0)
             : meses.filter(m => !m.pulado).reduce((a, m) => a + m.horasUsadas, 0);
+        // horasAcumuladas agora = saldo atual após todos os meses processados (para mensal)
+        const horasAcumuladasAtuais = isUnico ? 0 : horasAcumuladas;
+        // Salvar saldo atual no backend (fire-and-forget) para exibir na lista de contratos
+        if (!isUnico) window._setContratoObs(contratoId, 'horas_acumuladas_atual', horasAcumuladasAtuais).catch(() => {});
 
         // ── Gerar HTML dos meses ────────────────────────────────────────────
         const mesesHtml = meses.length === 0
@@ -6333,15 +6369,41 @@ async function verHistoricoContrato(contratoId) {
 
                 const sessoesHtml = m.sessMes.length === 0
                     ? `<span style="color:#94a3b8;font-size:12px;">Nenhuma sessão neste mês</span>`
-                    : m.sessMes.map(s => `
-                        <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f1f5f9;font-size:12px;">
-                            <span style="color:#475569;">${new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR')} — ${escapeHtml(s.descricao || s.horario || 'Sessão')}</span>
-                            <div style="display:flex;gap:8px;align-items:center;">
+                    : m.sessMes.map(s => {
+                        // Entrega por sessão (apenas contratos mensais; Único usa entrega por contrato)
+                        let entSessaoHtml = '';
+                        if (!isUnico) {
+                            const entSessao  = (m.sessoes_entrega_mes || {})[String(s.id)] || '';
+                            const ENT_D = m.ENT_DISPLAY || {};
+                            const entEfS = entSessao && ENT_D[entSessao] ? ENT_D[entSessao] : null;
+                            const entBorderS = entEfS ? entEfS.border : '#e2e8f0';
+                            const entBgS     = entEfS ? entEfS.bg     : '#f8fafc';
+                            const entColorS  = entEfS ? entEfS.color  : '#64748b';
+                            const optsEntS = [
+                                { v: 'entregue',      i: '✅', l: 'Entregue' },
+                                { v: 'parcial',       i: '⚠️', l: 'Parcial' },
+                                { v: 'atrasada',      i: '❌', l: 'Atrasada' },
+                                { v: 'nao_realizada', i: '⏳', l: 'Não real.' },
+                            ].map(o => `<option value="${o.v}" ${entSessao === o.v ? 'selected' : ''}>${o.i} ${o.l}</option>`).join('');
+                            const payloadFn = `JSON.stringify({sessao_id:${s.id},status:this.value})`;
+                            entSessaoHtml = `<select onchange="window._setHistoricoMes(${contratoId},'${m.mesKey}','sessao_entrega',${payloadFn})"
+                                title="Entrega desta sessão"
+                                style="font-size:10px;padding:3px 6px;border-radius:6px;border:1.5px solid ${entBorderS};background:${entBgS};color:${entColorS};cursor:pointer;font-weight:600;outline:none;max-width:110px;">
+                                <option value="" ${!entSessao ? 'selected' : ''}>Entrega ▼</option>
+                                ${optsEntS}
+                            </select>`;
+                        }
+                        return `
+                        <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f1f5f9;font-size:12px;flex-wrap:wrap;gap:4px;">
+                            <span style="color:#475569;flex:1;min-width:150px;">${new Date(s.data + 'T12:00:00').toLocaleDateString('pt-BR')} — ${escapeHtml(s.descricao || s.horario || 'Sessão')}</span>
+                            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                                ${entSessaoHtml}
                                 ${s.numero_nf ? `<span style="background:#eff6ff;color:#1d4ed8;padding:2px 6px;border-radius:4px;font-size:10px;">NF ${escapeHtml(s.numero_nf)}</span>` : ''}
                                 <span style="font-weight:700;color:#0369a1;">${parseFloat(s.quantidade_horas || 0).toFixed(1)}h</span>
                                 <button onclick="editarSessao(${s.id})" style="background:none;border:none;cursor:pointer;font-size:12px;padding:0 2px;" title="Editar">✏️</button>
                             </div>
-                        </div>`).join('');
+                        </div>`;
+                    }).join('');
 
                 // ── Helper: monta um <select> de status ──────────────────
                 function _mkSelect(label, campo, manual, displayMap, opts, contratoIdInner, mesKeyInner, extraStyle) {
@@ -6406,7 +6468,8 @@ async function verHistoricoContrato(contratoId) {
                     style="font-size:11px;padding:4px 10px;border-radius:8px;border:1px solid ${m.pulado ? '#fca5a5' : '#e2e8f0'};background:${m.pulado ? '#fee2e2' : '#f8fafc'};cursor:pointer;color:${m.pulado ? '#dc2626' : '#64748b'};">
                     ${m.pulado ? '↩ Reativar Mês' : '⏭ Pular Mês'}</button>`;
 
-                // Indicadores de horas: para Único mostra apenas Total vs Usadas sem controle mensal
+                // Indicadores de horas:
+                // Único → Total vs Usadas | Mensal → Prev + Acumuladas + Disponíveis + Utilizadas + Extras/Sobram
                 const indicadoresHoras = isUnico
                     ? (horasTotaisContrato > 0 ? `
                         <div style="background:#f1f5f9;border-radius:8px;padding:9px;text-align:center;">
@@ -6433,22 +6496,52 @@ async function verHistoricoContrato(contratoId) {
                         </div>` : ''))
                     : (horasMensais > 0 ? `
                         <div style="background:#f1f5f9;border-radius:8px;padding:9px;text-align:center;">
-                            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">Horas Prev.</div>
+                            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">Previstas</div>
                             <div style="font-size:17px;font-weight:800;color:#334155;">${horasMensais.toFixed(1)}h</div>
                         </div>
+                        ${m.horasEntrada > 0 ? `
+                        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:9px;text-align:center;">
+                            <div style="font-size:10px;color:#1d4ed8;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">Acumuladas ✦</div>
+                            <div style="font-size:17px;font-weight:800;color:#1d4ed8;">${m.horasEntrada.toFixed(1)}h</div>
+                        </div>
+                        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:9px;text-align:center;">
+                            <div style="font-size:10px;color:#166534;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">Disponíveis</div>
+                            <div style="font-size:17px;font-weight:800;color:#15803d;">${m.horasDisponiveis.toFixed(1)}h</div>
+                        </div>` : ''}
                         <div style="background:#f1f5f9;border-radius:8px;padding:9px;text-align:center;">
-                            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">Utilizadas</div>
+                            <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">${m.horasAjuste !== null ? '⚙ Ajustadas' : 'Utilizadas'}</div>
                             <div style="font-size:17px;font-weight:800;color:#0369a1;">${m.horasUsadas.toFixed(1)}h</div>
+                            ${m.horasAjuste !== null ? `<div style="font-size:9px;color:#94a3b8;margin-top:1px;">manual</div>` : ''}
                         </div>
                         ${m.horasExtras > 0 ? `<div style="background:#fee2e2;border:1px solid #fecaca;border-radius:8px;padding:9px;text-align:center;">
-                            <div style="font-size:10px;color:#991b1b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">Horas Extras</div>
+                            <div style="font-size:10px;color:#991b1b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">Extras 💸</div>
                             <div style="font-size:17px;font-weight:800;color:#dc2626;">+${m.horasExtras.toFixed(1)}h</div>
                         </div>` : ''}
-                        ${m.horasSobrando > 0 ? `<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:9px;text-align:center;">
-                            <div style="font-size:10px;color:#065f46;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">Sobram</div>
-                            <div style="font-size:17px;font-weight:800;color:#059669;">${m.horasSobrando.toFixed(1)}h</div>
+                        ${m.horasSobrando > 0 ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:9px;text-align:center;">
+                            <div style="font-size:10px;color:#1e40af;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">Próx. mês ▶</div>
+                            <div style="font-size:17px;font-weight:800;color:#1d4ed8;">${m.horasSobrando.toFixed(1)}h</div>
                         </div>` : ''}
                     ` : '');
+
+                // Campos de ajuste manual (horas e valor do mês): apenas para mensal, mês não pulado
+                const camposAjuste = (!isUnico && !m.pulado) ? `
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:8px;padding-top:8px;border-top:1px dashed #e2e8f0;">
+                        <div style="display:flex;flex-direction:column;gap:2px;">
+                            <span style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;">⚙ Horas do mês (ajuste)</span>
+                            <input type="number" min="0" step="0.5" placeholder="Auto"
+                                value="${m.horasAjuste !== null ? m.horasAjuste : ''}"
+                                onchange="window._setHistoricoMes(${contratoId},'${m.mesKey}','horas_ajuste',this.value||'')"
+                                style="width:80px;font-size:12px;padding:4px 8px;border-radius:6px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#334155;outline:none;">
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:2px;">
+                            <span style="font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;">💰 Valor do mês (R$)</span>
+                            <input type="number" min="0" step="0.01" placeholder="Auto"
+                                value="${m.valorMesOverride !== null ? m.valorMesOverride : ''}"
+                                onchange="window._setHistoricoMes(${contratoId},'${m.mesKey}','valor_mes',this.value||'')"
+                                style="width:100px;font-size:12px;padding:4px 8px;border-radius:6px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#334155;outline:none;">
+                        </div>
+                        ${m.valorMesOverride ? `<span style="font-size:11px;color:#059669;font-weight:700;align-self:flex-end;padding-bottom:4px;">= ${parseFloat(m.valorMesOverride).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</span>` : ''}
+                    </div>` : '';
 
                 return `
                 <div style="border:1px solid ${borderCard};border-radius:12px;padding:16px 18px;background:${bgCard};margin-bottom:10px;${m.pulado ? 'opacity:.7;' : ''}">
@@ -6458,16 +6551,20 @@ async function verHistoricoContrato(contratoId) {
                             <span style="font-size:14px;font-weight:700;color:#1e293b;text-transform:capitalize;">${m.mesLabel}</span>
                             ${!isUnico && m.isCurrent ? '<span style="background:#fbbf24;color:#78350f;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;">MÊS ATUAL</span>' : ''}
                             ${!isUnico && m.pulado ? '<span style="background:#e2e8f0;color:#64748b;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;">MÊS PULADO</span>' : ''}
+                            ${!isUnico && m.horasEntrada > 0 && !m.pulado ? `<span style="background:#dbeafe;color:#1d4ed8;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;">+${m.horasEntrada.toFixed(1)}h acum.</span>` : ''}
                         </div>
                         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;">
-                            ${btnNF}${btnPag}${btnEntrega}${btnDataPag}${btnPular}
+                            ${btnNF}${btnPag}${isUnico ? btnEntrega : ''}${btnDataPag}${btnPular}
                         </div>
                     </div>
 
                     ${m.pulado ? '' : `
-                    <!-- Indicadores -->
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:12px;">
+                    <!-- Indicadores de horas -->
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:8px;">
                         ${indicadoresHoras}
+                    </div>
+                    <!-- Status NF e Pagamento -->
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:8px;">
                         <div style="background:${m.nfBg};border-radius:8px;padding:9px;text-align:center;">
                             <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">NF</div>
                             <div style="font-size:12px;font-weight:700;color:${m.nfColor};">${m.nfStatus}</div>
@@ -6477,17 +6574,19 @@ async function verHistoricoContrato(contratoId) {
                             <div style="font-size:12px;font-weight:700;color:${m.pagColor};">${m.pagStatus}</div>
                             ${m.dataPagamento ? `<div style="font-size:10px;color:#64748b;margin-top:2px;">${new Date(m.dataPagamento+'T12:00:00').toLocaleDateString('pt-BR')}</div>` : ''}
                         </div>
-                        <div style="background:${m.entBg};border-radius:8px;padding:9px;text-align:center;">
+                        ${isUnico ? `<div style="background:${m.entBg};border-radius:8px;padding:9px;text-align:center;">
                             <div style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;">Entrega</div>
                             <div style="font-size:12px;font-weight:700;color:${m.entColor};">${m.entStatus}</div>
                             ${!m.entStatusManual ? '<div style="font-size:9px;color:#94a3b8;margin-top:1px;">auto</div>' : ''}
-                        </div>
+                        </div>` : ''}
                     </div>
+                    ${camposAjuste}
 
-                    <!-- Sessões (colapsável) -->
-                    <details ${isUnico ? 'open' : ''}>
+                    <!-- Sessões (${isUnico ? 'abertas' : 'colapsável'}) -->
+                    <details ${isUnico ? 'open' : ''} style="margin-top:10px;">
                         <summary style="cursor:pointer;font-size:12px;color:#64748b;font-weight:600;user-select:none;list-style:none;display:flex;align-items:center;gap:4px;">
                             <span>▶</span> ${m.sessMes.length} sessão(ões)${isUnico ? '' : ' neste mês'}
+                            ${!isUnico ? '<span style="font-size:10px;color:#94a3b8;"> — entrega por sessão</span>' : ''}
                         </summary>
                         <div style="margin-top:8px;padding:8px;background:#f8fafc;border-radius:6px;">${sessoesHtml}</div>
                     </details>
@@ -6561,11 +6660,33 @@ async function verHistoricoContrato(contratoId) {
                 </div>
             </div>
 
-            <!-- Título meses -->
+            <!-- Título meses + painel de horas acumuladas (mensal) -->
+            ${!isUnico && horasMensais > 0 ? `
+            <div style="background:${horasAcumuladasAtuais > 0 ? '#eff6ff' : '#f8fafc'};border:1px solid ${horasAcumuladasAtuais > 0 ? '#bfdbfe' : '#e2e8f0'};border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                    <div>
+                        <div style="font-size:10px;color:${horasAcumuladasAtuais > 0 ? '#1d4ed8' : '#64748b'};text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">⏱ Horas Acumuladas Atuais</div>
+                        <div style="font-size:22px;font-weight:800;color:${horasAcumuladasAtuais > 0 ? '#1d4ed8' : '#94a3b8'};">${horasAcumuladasAtuais.toFixed(1)}h</div>
+                        <div style="font-size:10px;color:#64748b;margin-top:1px;">saldo disponível para o próximo ciclo</div>
+                    </div>
+                    ${parseFloat(contrato.horas_acumuladas_inicial || 0) > 0 ? `
+                    <div style="background:${horasAcumuladasAtuais > 0 ? '#dbeafe' : '#f1f5f9'};border-radius:8px;padding:8px 12px;">
+                        <div style="font-size:10px;color:#64748b;text-transform:uppercase;margin-bottom:2px;">Horas Iniciais</div>
+                        <div style="font-size:14px;font-weight:700;color:#334155;">${parseFloat(contrato.horas_acumuladas_inicial).toFixed(1)}h</div>
+                    </div>` : ''}
+                </div>
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <button onclick="window._editarHorasIniciais(${contratoId}, ${parseFloat(contrato.horas_acumuladas_inicial || 0)})"
+                        style="font-size:11px;padding:6px 12px;border-radius:8px;border:1px solid #bfdbfe;background:white;color:#1d4ed8;cursor:pointer;font-weight:600;">
+                        ✦ Definir horas iniciais / bônus
+                    </button>
+                </div>
+            </div>` : ''}
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
                 <span style="font-size:14px;font-weight:700;color:#1e293b;">${isUnico ? 'Sessões do Contrato' : 'Histórico Mensal'}</span>
                 <span style="background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;">${meses.length} ${isUnico ? 'período(s)' : 'meses'}</span>
                 ${semNF && !meses.some(m => m.nfEmitida) ? '<span style="background:#fef9c3;color:#854d0e;font-size:11px;padding:2px 8px;border-radius:10px;">Sem NF</span>' : ''}
+                ${!isUnico && horasAcumuladasAtuais > 0 ? `<span style="background:#dbeafe;color:#1d4ed8;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;">✦ ${horasAcumuladasAtuais.toFixed(1)}h acumuladas</span>` : ''}
             </div>
 
             ${mesesHtml}
@@ -6607,6 +6728,46 @@ window._setHistoricoMes = async function(contratoId, mes, campo, valor) {
         }
     } catch (e) {
         showToast('Erro de conexão', 'error');
+    }
+};
+
+// Define campo raiz de observacoes (horas_acumuladas_inicial, horas_acumuladas_atual)
+window._setContratoObs = async function(contratoId, campo, valor) {
+    const r = await fetch(`/api/contratos/${contratoId}/observacoes`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campo, valor })
+    });
+    const res = await r.json();
+    if (!res.success) console.warn('[_setContratoObs] falha:', res.error);
+    return res;
+};
+
+// Abre prompt para editar horas acumuladas iniciais / bônus
+window._editarHorasIniciais = async function(contratoId, valorAtual) {
+    const resp = prompt(
+        `Horas acumuladas de entrada para este contrato:\n` +
+        `(Inclui horas de contratos anteriores e bônus dados ao cliente.\n` +
+        `Não impacta valores de NF — apenas a disponibilidade de horas.)\n\n` +
+        `Valor atual: ${parseFloat(valorAtual || 0).toFixed(1)}h`,
+        parseFloat(valorAtual || 0).toFixed(1)
+    );
+    if (resp === null) return; // cancelou
+    const novoValor = parseFloat(resp);
+    if (isNaN(novoValor) || novoValor < 0) {
+        showToast('❌ Valor inválido. Informe um número ≥ 0.', 'error');
+        return;
+    }
+    try {
+        const res = await window._setContratoObs(contratoId, 'horas_acumuladas_inicial', novoValor);
+        if (res.success) {
+            showToast(`✅ Horas iniciais definidas: ${novoValor.toFixed(1)}h`, 'success');
+            verHistoricoContrato(contratoId);
+        } else {
+            showToast('❌ Erro: ' + (res.error || 'falha'), 'error');
+        }
+    } catch (e) {
+        showToast('❌ Erro de conexão', 'error');
     }
 };
 async function excluirContrato(id) {

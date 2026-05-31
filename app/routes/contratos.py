@@ -259,12 +259,17 @@ def atualizar_historico_mes(contrato_id):
         'pagamento_status':  ('pago', 'parcial', 'atrasado', 'nao_pago', ''),
         'entrega_status':    ('entregue', 'parcial', 'atrasada', 'nao_realizada', ''),
         'data_pagamento':    None,  # data livre (YYYY-MM-DD ou string vazia)
+        'horas_ajuste':      None,  # número livre — horas usadas manuais para o mês
+        'valor_mes':         None,  # número livre — valor/NF do mês (override)
     }
+    # Campo especial: entrega por sessão
+    CAMPO_SESSAO_ENTREGA = 'sessao_entrega'
+    VALID_ENTREGA = ('entregue', 'parcial', 'atrasada', 'nao_realizada', '')
 
     import re
     if not re.match(r'^\d{4}-\d{2}$', mes):
         return jsonify({'error': 'Mês inválido'}), 400
-    if campo not in CAMPOS_BOOL and campo not in CAMPOS_STR:
+    if campo not in CAMPOS_BOOL and campo not in CAMPOS_STR and campo != CAMPO_SESSAO_ENTREGA:
         return jsonify({'error': f'Campo inválido: {campo}'}), 400
     if campo in CAMPOS_STR and CAMPOS_STR[campo] is not None:
         # Sanitização: aceitar apenas valores da lista permitida
@@ -293,6 +298,31 @@ def atualizar_historico_mes(contrato_id):
 
             if campo in CAMPOS_BOOL:
                 obs['historico_mensal'][mes][campo] = bool(valor)
+            elif campo in ('horas_ajuste', 'valor_mes'):
+                # Campos numéricos: vazio/None remove (volta ao automático)
+                if valor == '' or valor is None:
+                    obs['historico_mensal'][mes].pop(campo, None)
+                else:
+                    try:
+                        obs['historico_mensal'][mes][campo] = float(valor)
+                    except (ValueError, TypeError):
+                        return jsonify({'error': f'Valor numérico inválido para {campo}'}), 400
+            elif campo == CAMPO_SESSAO_ENTREGA:
+                # valor = {"sessao_id": "456", "status": "entregue"}
+                try:
+                    payload = json.loads(valor) if isinstance(valor, str) else valor
+                    sessao_id = str(payload.get('sessao_id', ''))
+                    status    = payload.get('status', '')
+                except Exception:
+                    return jsonify({'error': 'sessao_entrega: valor deve ser JSON {"sessao_id":..., "status":...}'}), 400
+                if status not in VALID_ENTREGA:
+                    return jsonify({'error': f'Status de entrega inválido: {status}'}), 400
+                if 'sessoes_entrega' not in obs['historico_mensal'][mes]:
+                    obs['historico_mensal'][mes]['sessoes_entrega'] = {}
+                if status == '':
+                    obs['historico_mensal'][mes]['sessoes_entrega'].pop(sessao_id, None)
+                else:
+                    obs['historico_mensal'][mes]['sessoes_entrega'][sessao_id] = status
             else:
                 # String vazia ou None remove o campo para voltar ao modo automático
                 if valor == '' or valor is None:
@@ -307,7 +337,60 @@ def atualizar_historico_mes(contrato_id):
             sucesso = cursor.rowcount > 0
 
         if sucesso:
-            return jsonify({'success': True, 'mes': mes, 'campo': campo, 'valor': bool(valor)})
+            return jsonify({'success': True, 'mes': mes, 'campo': campo})
+        return jsonify({'error': 'Contrato não encontrado'}), 404
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@contratos_bp.route('/<int:contrato_id>/observacoes', methods=['PATCH'])
+def atualizar_observacoes_raiz(contrato_id):
+    """Atualiza campos raiz de observacoes (horas_acumuladas_inicial, horas_acumuladas_atual).
+    Body: { "campo": "horas_acumuladas_inicial", "valor": 5.0 }
+    """
+    usuario = get_usuario_logado()
+    if not usuario:
+        return jsonify({'error': 'Não autenticado'}), 401
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'error': 'Empresa não selecionada'}), 403
+
+    data   = request.json or {}
+    campo  = data.get('campo', '').strip()
+    valor  = data.get('valor')
+
+    CAMPOS_PERMITIDOS = ('horas_acumuladas_inicial', 'horas_acumuladas_atual')
+    if campo not in CAMPOS_PERMITIDOS:
+        return jsonify({'error': f'Campo inválido: {campo}'}), 400
+
+    # Converte para float; None / '' → 0
+    try:
+        valor_f = float(valor) if (valor is not None and valor != '') else 0.0
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Valor numérico inválido'}), 400
+
+    try:
+        import json
+        from database_postgresql import get_db_connection
+        with get_db_connection(empresa_id=empresa_id) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT observacoes FROM contratos WHERE id = %s", (contrato_id,))
+            row = cursor.fetchone()
+            if not row:
+                return jsonify({'error': 'Contrato não encontrado'}), 404
+            try:
+                obs = json.loads(row['observacoes']) if row['observacoes'] else {}
+            except Exception:
+                obs = {}
+            obs[campo] = valor_f
+            cursor.execute(
+                "UPDATE contratos SET observacoes = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
+                (json.dumps(obs), contrato_id)
+            )
+            sucesso = cursor.rowcount > 0
+        if sucesso:
+            return jsonify({'success': True, 'campo': campo, 'valor': valor_f})
         return jsonify({'error': 'Contrato não encontrado'}), 404
     except Exception as e:
         import traceback; traceback.print_exc()
