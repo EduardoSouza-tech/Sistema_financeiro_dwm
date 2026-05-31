@@ -512,7 +512,7 @@ async function _editarSessaoFormLegado(id) {
         document.getElementById('sessao-cliente').value = sessao.cliente_id;
         document.getElementById('sessao-contrato').value = sessao.contrato_id || '';
         document.getElementById('sessao-tipo').value = sessao.tipo_sessao;
-        document.getElementById('sessao-data').value = sessao.data_sessao;
+        document.getElementById('sessao-data').value = sessao.data || sessao.data_sessao || '';
         document.getElementById('sessao-horario').value = sessao.horario;
         document.getElementById('sessao-endereco').value = sessao.endereco || '';
         document.getElementById('sessao-descricao').value = sessao.descricao || '';
@@ -1106,11 +1106,11 @@ function renderListaSessoes(sessoes) {
             ${sessoes.map(sessao => `
                 <tr style="border-bottom: 1px solid #e0e0e0;">
                     <td style="padding: 12px;">${sessao.cliente_nome_fantasia || sessao.cliente_nome || 'Cliente não encontrado'}</td><!-- REGRA: nome_fantasia > razao_social -->
-                    <td style="padding: 12px;">${formatarData(sessao.data_sessao)}<br>${sessao.horario}</td>
+                    <td style="padding: 12px;">${formatarData(sessao.data || sessao.data_sessao)}<br>${sessao.horario}</td>
                     <td style="padding: 12px;">${sessao.tipo_sessao}</td>
                     <td style="padding: 12px; text-align: center;">
                         <span style="padding: 4px 12px; border-radius: 12px; font-size: 12px; background: ${getCorStatusSessao(sessao.status)}; color: white;">
-                            ${sessao.status}
+                            ${getLabelStatusSessao(sessao.status)}
                         </span>
                     </td>
                     <td style="padding: 12px; text-align: center;">
@@ -1147,9 +1147,9 @@ function renderCardsSessoes(sessoes) {
         card.style.cssText = `background: ${statusCor}; color: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);`;
         card.innerHTML = `
             <h3 style="margin: 0 0 10px 0;">${sessao.cliente_nome_fantasia || sessao.cliente_nome || 'Cliente não encontrado'}</h3><!-- REGRA: nome_fantasia > razao_social -->
-            <p style="margin: 5px 0;"><strong>Data:</strong> ${formatarData(sessao.data_sessao)} às ${sessao.horario}</p>
+            <p style="margin: 5px 0;"><strong>Data:</strong> ${formatarData(sessao.data || sessao.data_sessao)} às ${sessao.horario}</p>
             <p style="margin: 5px 0;"><strong>Tipo:</strong> ${sessao.tipo_sessao}</p>
-            <p style="margin: 5px 0;"><strong>Status:</strong> ${sessao.status}</p>
+            <p style="margin: 5px 0;"><strong>Status:</strong> ${getLabelStatusSessao(sessao.status)}</p>
             ${sessao.descricao ? `<p style="margin: 5px 0;">${sessao.descricao}</p>` : ''}
             <div style="display: flex; gap: 10px; margin-top: 15px;">
                 <button class="btn btn-sm" onclick="editarSessao(${sessao.id})" style="background: white; color: #333;">✏️ Editar</button>
@@ -1277,6 +1277,28 @@ function getCorStatusSessao(status) {
     return cores[status] || '#95a5a6';
 }
 
+function getLabelStatusSessao(status) {
+    const labels = {
+        'rascunho':          'Rascunho',
+        'agendada':          'Agendada',
+        'reagendada':        'Reagendada',
+        'realizada':         'Realizada',
+        'cancelada':         'Cancelada',
+        'backup':            'Backup',
+        'tratamento_de_cor': 'Trat. de Cor',
+        'tratamento_final':  'Trat. Final',
+        'entrega':           'Entrega',
+        'concluida':         'Concluída',
+        'alteracao':         'Alteração',
+        'arquivada':         'Arquivada',
+        // Legado
+        'em_andamento':      'Em Andamento',
+        'finalizada':        'Finalizada',
+        'reaberta':          'Reaberta',
+    };
+    return labels[status] || status || '—';
+}
+
 async function atualizarStatusSessao(id) {
     try {
         // Buscar dados atuais da sessão
@@ -1309,8 +1331,8 @@ async function atualizarStatusSessao(id) {
                 <h3 style="margin: 0 0 20px 0;">🔄 Atualizar Status da Sessão</h3>
                 <div style="margin-bottom: 20px;">
                     <p style="margin: 0 0 10px 0; color: #666;"><strong>Cliente:</strong> ${sessao.cliente_nome_fantasia || sessao.cliente_nome}</p><!-- REGRA: nome_fantasia > razao_social -->
-                    <p style="margin: 0 0 10px 0; color: #666;"><strong>Data:</strong> ${formatarData(sessao.data_sessao)}</p>
-                    <p style="margin: 0 0 10px 0; color: #666;"><strong>Status Atual:</strong> <span style="background: ${getCorStatusSessao(sessao.status)}; color: white; padding: 3px 10px; border-radius: 12px; font-size: 12px;">${sessao.status}</span></p>
+                    <p style="margin: 0 0 10px 0; color: #666;"><strong>Data:</strong> ${formatarData(sessao.data || sessao.data_sessao)}</p>
+                    <p style="margin: 0 0 10px 0; color: #666;"><strong>Status Atual:</strong> <span style="background: ${getCorStatusSessao(sessao.status)}; color: white; padding: 3px 10px; border-radius: 12px; font-size: 12px;">${getLabelStatusSessao(sessao.status)}</span></p>
                 </div>
                 <div style="margin-bottom: 20px;">
                     <label style="display: block; margin-bottom: 8px; font-weight: bold;">Novo Status:</label>
@@ -1476,12 +1498,12 @@ async function verDetalhesFornecedor(id) {
                                         <div style="display: flex; justify-content: space-between; align-items: start;">
                                             <div>
                                                 <div style="font-weight: bold;">${s.cliente_nome_fantasia || s.cliente_nome}</div><!-- REGRA: nome_fantasia > razao_social -->
-                                                <div style="font-size: 14px; color: #666;">${formatarData(s.data_sessao)} - ${s.tipo_sessao}</div>
+                                                <div style="font-size: 14px; color: #666;">${formatarData(s.data || s.data_sessao)} - ${s.tipo_sessao}</div>
                                                 <div style="font-size: 13px; color: #999;">Função: ${equipeMembro?.funcao || 'N/A'}</div>
                                             </div>
                                             <div style="text-align: right;">
                                                 <div style="background: ${getCorStatusSessao(s.status)}; color: white; padding: 3px 8px; border-radius: 10px; font-size: 11px; margin-bottom: 5px;">
-                                                    ${s.status}
+                                                    ${getLabelStatusSessao(s.status)}
                                                 </div>
                                                 <div style="font-weight: bold; color: #27ae60;">R$ ${parseFloat(equipeMembro?.valor_combinado || 0).toFixed(2)}</div>
                                             </div>
