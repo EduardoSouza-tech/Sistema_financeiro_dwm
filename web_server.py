@@ -8277,6 +8277,92 @@ def exportar_funcionario_pdf(funcionario_id):
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/funcionarios/exportar/excel', methods=['GET'])
+@require_permission('folha_pagamento_view')
+def exportar_funcionarios_excel():
+    """Exporta funcionários (folha de pagamento) para Excel"""
+    empresa_id = session.get('empresa_id')
+    if not empresa_id:
+        return jsonify({'erro': 'Empresa não selecionada'}), 403
+
+    try:
+        import openpyxl  # type: ignore
+        from openpyxl.styles import Font, Alignment, PatternFill  # type: ignore
+        from openpyxl.worksheet.worksheet import Worksheet  # type: ignore
+        from io import BytesIO
+
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT nome, cpf, email, celular, ativo, data_admissao, data_demissao,
+                   profissao, chave_pix, pis_pasep, cidade, estado
+            FROM funcionarios
+            WHERE empresa_id = %s
+            ORDER BY nome ASC
+        """, (empresa_id,))
+        rows = cursor.fetchall()
+        cursor.close()
+
+        cols = ['nome', 'cpf', 'email', 'celular', 'ativo', 'data_admissao', 'data_demissao',
+                'profissao', 'chave_pix', 'pis_pasep', 'cidade', 'estado']
+        funcionarios = [row if isinstance(row, dict) else dict(zip(cols, row)) for row in rows]
+
+        wb = openpyxl.Workbook()
+        ws: Worksheet = wb.active  # type: ignore
+        ws.title = "Funcionários"
+
+        headers = ['Nome', 'CPF', 'Email', 'Celular', 'Status', 'Data Admissão', 'Data Demissão',
+                   'Profissão', 'Chave PIX', 'PIS/PASEP', 'Cidade', 'Estado']
+        ws.append(headers)
+
+        header_fill = PatternFill(start_color="34495e", end_color="34495e", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF", size=12)
+
+        for cell in ws[1]:
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+
+        def fmt_date(v):
+            if not v:
+                return ''
+            if hasattr(v, 'strftime'):
+                return v.strftime('%d/%m/%Y')
+            return str(v)
+
+        for f in funcionarios:
+            ws.append([
+                f.get('nome', ''), f.get('cpf', ''), f.get('email', ''), f.get('celular', ''),
+                'Ativo' if f.get('ativo') else 'Inativo',
+                fmt_date(f.get('data_admissao')), fmt_date(f.get('data_demissao')),
+                f.get('profissao', ''), f.get('chave_pix', ''), f.get('pis_pasep', ''),
+                f.get('cidade', ''), f.get('estado', '')
+            ])
+
+        for column in ws.columns:
+            max_length = 0
+            column_letter = column[0].column_letter  # type: ignore
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(cell.value)
+                except:
+                    pass
+            ws.column_dimensions[column_letter].width = min(max_length + 2, 50)
+
+        buffer = BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+
+        return send_file(buffer, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=f'funcionarios_{get_current_date_filename()}.xlsx')
+
+    except Exception as e:
+        logger.error(f"Erro ao exportar funcionários para Excel: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
+
+
 # === ROTAS DE EVENTOS ===
 
 @app.route('/api/eventos', methods=['GET'])
