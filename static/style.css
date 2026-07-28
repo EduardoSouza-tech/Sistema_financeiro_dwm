@@ -2098,28 +2098,6 @@ textarea {
     }
 }
 
-/* Modo escuro - preferência do sistema */
-@media (prefers-color-scheme: dark) {
-    body {
-        background-color: #1a1a1a;
-        color: #e0e0e0;
-    }
-    
-    .card,
-    .modal-content,
-    .table-container {
-        background: #2a2a2a;
-        color: #e0e0e0;
-    }
-    
-    .input,
-    .select {
-        background: #333;
-        color: #e0e0e0;
-        border-color: #555;
-    }
-}
-
 /* Animações reduzidas para quem prefere */
 @media (prefers-reduced-motion: reduce) {
     *,

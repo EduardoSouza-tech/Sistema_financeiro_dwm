@@ -618,7 +618,7 @@
                 const result = await response.json();
                 
                 if (result.success && result.authenticated) {
-                    showAlert('Você já está logado! Redirecionando...', 'info');
+                    showAlert('Conectando ao sistema...', 'info');
                     setTimeout(() => {
                         window.location.href = '/';
                     }, 1500);
