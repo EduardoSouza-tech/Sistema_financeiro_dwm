@@ -7852,37 +7852,52 @@ def obter_funcionario(funcionario_id):
         
         conn = db.get_connection()
         cursor = conn.cursor()
-        
+
         # Buscar funcion�rio da empresa
         cursor.execute("""
-            SELECT id, empresa_id, nome, cpf, endereco, tipo_chave_pix, 
-                   chave_pix, data_admissao, observacoes, ativo,
-                   data_criacao, data_atualizacao
-            FROM funcionarios 
+            SELECT id, empresa_id, nome, cpf, email, celular, ativo, data_admissao,
+                   data_demissao, observacoes, nacionalidade, estado_civil, data_nascimento,
+                   idade, profissao, rua_av, numero_residencia, complemento, bairro, cidade,
+                   estado, cep, chave_pix, pis_pasep, data_criacao, data_atualizacao
+            FROM funcionarios
             WHERE id = %s AND empresa_id = %s
         """, (funcionario_id, empresa_id))
-        
+
         row = cursor.fetchone()
         cursor.close()
-        
+
         if not row:
             return jsonify({'error': 'Funcion�rio n�o encontrado'}), 404
-        
+
         # Verifica se row � dict ou tupla
         if isinstance(row, dict):
             funcionario = {
                 'id': row['id'],
                 'empresa_id': row['empresa_id'],
                 'nome': row['nome'],
-                'cpf': row['cpf'],
-                'endereco': row['endereco'],
-                'tipo_chave_pix': row['tipo_chave_pix'],
-                'chave_pix': row['chave_pix'],
-                'data_admissao': row['data_admissao'].isoformat() if row['data_admissao'] else None,
-                'observacoes': row['observacoes'],
-                'ativo': row['ativo'],
-                'data_criacao': safe_isoformat(row['data_criacao']),
-                'data_atualizacao': safe_isoformat(row['data_atualizacao'])
+                'cpf': row.get('cpf'),
+                'email': row.get('email'),
+                'celular': row.get('celular'),
+                'ativo': row.get('ativo', True),
+                'data_admissao': row['data_admissao'].isoformat() if row.get('data_admissao') else None,
+                'data_demissao': row['data_demissao'].isoformat() if row.get('data_demissao') else None,
+                'observacoes': row.get('observacoes'),
+                'nacionalidade': row.get('nacionalidade'),
+                'estado_civil': row.get('estado_civil'),
+                'data_nascimento': safe_isoformat(row.get('data_nascimento')),
+                'idade': row.get('idade'),
+                'profissao': row.get('profissao'),
+                'rua_av': row.get('rua_av'),
+                'numero_residencia': row.get('numero_residencia'),
+                'complemento': row.get('complemento'),
+                'bairro': row.get('bairro'),
+                'cidade': row.get('cidade'),
+                'estado': row.get('estado'),
+                'cep': row.get('cep'),
+                'chave_pix': row.get('chave_pix'),
+                'pis_pasep': row.get('pis_pasep'),
+                'data_criacao': safe_isoformat(row.get('data_criacao')),
+                'data_atualizacao': safe_isoformat(row.get('data_atualizacao'))
             }
         else:
             funcionario = {
@@ -7890,16 +7905,30 @@ def obter_funcionario(funcionario_id):
                 'empresa_id': row[1],
                 'nome': row[2],
                 'cpf': row[3],
-                'endereco': row[4],
-                'tipo_chave_pix': row[5],
-                'chave_pix': row[6],
+                'email': row[4],
+                'celular': row[5],
+                'ativo': row[6] if row[6] is not None else True,
                 'data_admissao': row[7].isoformat() if row[7] else None,
-                'observacoes': row[8],
-                'ativo': row[9],
-                'data_criacao': row[10].isoformat() if row[10] else None,
-                'data_atualizacao': safe_isoformat(row[11])
+                'data_demissao': row[8].isoformat() if row[8] else None,
+                'observacoes': row[9],
+                'nacionalidade': row[10],
+                'estado_civil': row[11],
+                'data_nascimento': safe_isoformat(row[12]),
+                'idade': row[13],
+                'profissao': row[14],
+                'rua_av': row[15],
+                'numero_residencia': row[16],
+                'complemento': row[17],
+                'bairro': row[18],
+                'cidade': row[19],
+                'estado': row[20],
+                'cep': row[21],
+                'chave_pix': row[22],
+                'pis_pasep': row[23],
+                'data_criacao': row[24].isoformat() if row[24] else None,
+                'data_atualizacao': safe_isoformat(row[25])
             }
-        
+
         return jsonify(funcionario), 200
     
     except Exception as e:
