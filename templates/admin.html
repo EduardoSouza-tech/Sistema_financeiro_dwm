@@ -384,6 +384,154 @@
             margin-bottom: 15px;
             opacity: 0.5;
         }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ===== Logs de Acesso ===== */
+        .logs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .logs-subtitle {
+            color: #666;
+            margin-top: 5px;
+            font-size: 14px;
+        }
+
+        .logs-toolbar,
+        .logs-modal-toolbar,
+        .logs-pagination {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .logs-toolbar { margin-bottom: 18px; }
+        .logs-modal-toolbar { margin-bottom: 18px; }
+
+        .logs-pagination {
+            justify-content: space-between;
+            margin-top: 16px;
+        }
+
+        .logs-toolbar .btn,
+        .logs-modal-toolbar .btn,
+        .logs-pagination .btn,
+        .logs-header .btn,
+        .logs-modal-header .btn {
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .logs-search,
+        .logs-modal-toolbar select,
+        .logs-modal-toolbar input[type="date"] {
+            padding: 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .logs-search:focus,
+        .logs-modal-toolbar select:focus,
+        .logs-modal-toolbar input[type="date"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .logs-search { flex: 1; min-width: 220px; }
+
+        .logs-table-wrap {
+            background: white;
+            border: 1px solid #edf0f5;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .logs-table-wrap table { margin-top: 0; }
+
+        .logs-table tbody tr {
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .logs-table tbody tr:hover { background: #f5f7ff; }
+
+        .logs-user-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logs-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 13px;
+            flex-shrink: 0;
+        }
+
+        .logs-user-nome { font-weight: 600; color: #1f2937; }
+        .logs-user-username { font-size: 12px; color: #9ca3af; }
+
+        .logs-progress-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 130px;
+        }
+
+        .logs-progress-bar {
+            flex: 1;
+            height: 6px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .logs-progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+
+        .logs-progress-label {
+            font-size: 13px;
+            font-weight: 600;
+            min-width: 36px;
+            text-align: right;
+        }
+
+        .logs-row-arrow {
+            color: #c7ccd6;
+            font-size: 18px;
+            text-align: right;
+            width: 24px;
+        }
+
+        .logs-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
     </style>
 </head>
 <body>
@@ -598,19 +746,18 @@
 
             <!-- Tab: Logs -->
             <div id="logsTab" class="tab-content">
-                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+                <div class="logs-header">
                     <div>
-                        <h2>Logs de Acesso</h2>
-                        <p style="color: #666; margin-top: 5px;">Resumo de acessos por usuário — clique em um usuário para ver o relatório completo</p>
+                        <h2>📋 Logs de Acesso</h2>
+                        <p class="logs-subtitle">Resumo de acessos por usuário — clique em um usuário para ver o relatório completo</p>
                     </div>
-                    <button onclick="loadResumoLogsAcesso()" class="btn" style="padding:8px 16px;">🔄 Atualizar</button>
+                    <button onclick="loadResumoLogsAcesso()" class="btn btn-secondary">🔄 Atualizar</button>
                 </div>
 
-                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
-                    <input type="text" id="logsResumoFiltroBusca" placeholder="Buscar por nome ou usuário..."
-                           style="flex:1;min-width:220px;padding:8px 10px;border:1px solid #ddd;border-radius:6px;"
+                <div class="logs-toolbar">
+                    <input type="text" id="logsResumoFiltroBusca" class="logs-search" placeholder="🔍 Buscar por nome ou usuário..."
                            onkeydown="if(event.key==='Enter') loadResumoLogsAcesso();">
-                    <button onclick="loadResumoLogsAcesso()" class="btn btn-primary" style="padding:8px 16px;">Filtrar</button>
+                    <button onclick="loadResumoLogsAcesso()" class="btn btn-primary">Filtrar</button>
                 </div>
 
                 <div id="logsResumoLoading" class="loading">
@@ -622,20 +769,23 @@
                     <p>Nenhum acesso registrado ainda</p>
                 </div>
 
-                <table id="logsResumoTable" style="display:none;">
-                    <thead>
-                        <tr>
-                            <th>Usuário</th>
-                            <th>Tipo</th>
-                            <th>Total de Acessos</th>
-                            <th>Sucessos</th>
-                            <th>Falhas</th>
-                            <th>Taxa de Sucesso</th>
-                            <th>Último Acesso</th>
-                        </tr>
-                    </thead>
-                    <tbody id="logsResumoTableBody"></tbody>
-                </table>
+                <div class="logs-table-wrap">
+                    <table class="table logs-table" id="logsResumoTable" style="display:none;">
+                        <thead>
+                            <tr>
+                                <th>Usuário</th>
+                                <th>Tipo</th>
+                                <th>Total</th>
+                                <th>Sucessos</th>
+                                <th>Falhas</th>
+                                <th>Taxa de Sucesso</th>
+                                <th>Último Acesso</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsResumoTableBody"></tbody>
+                    </table>
+                </div>
             </div>
 
             <!-- Tab: Exportar Dados -->
@@ -820,31 +970,31 @@
     <!-- Modal: Relatório completo de acessos por usuário -->
     <div id="logsUsuarioModal" class="modal">
         <div class="modal-content" style="max-width: 960px;">
-            <div class="modal-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+            <div class="logs-modal-header">
                 <div>
                     <h3 id="logsUsuarioModalNome">Relatório de Acessos</h3>
                     <p id="logsUsuarioModalSubtitulo" style="color:#666;font-size:13px;margin-top:4px;"></p>
                 </div>
-                <button type="button" onclick="fecharRelatorioUsuarioLogs()" class="btn" style="padding:6px 12px;">✕ Fechar</button>
+                <button type="button" onclick="fecharRelatorioUsuarioLogs()" class="btn btn-secondary">✕ Fechar</button>
             </div>
 
             <!-- KPIs -->
             <div class="stats" id="logsUsuarioStats" style="margin-bottom:20px;"></div>
 
             <!-- Filtros do relatório -->
-            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
-                <select id="logsUsuarioFiltroAcao" style="padding:8px 10px;border:1px solid #ddd;border-radius:6px;">
+            <div class="logs-modal-toolbar">
+                <select id="logsUsuarioFiltroAcao">
                     <option value="">Todas as ações</option>
                 </select>
-                <select id="logsUsuarioFiltroSucesso" style="padding:8px 10px;border:1px solid #ddd;border-radius:6px;">
+                <select id="logsUsuarioFiltroSucesso">
                     <option value="">Sucesso e falhas</option>
                     <option value="true">Somente sucesso</option>
                     <option value="false">Somente falhas</option>
                 </select>
-                <input type="date" id="logsUsuarioFiltroDataInicio" style="padding:8px 10px;border:1px solid #ddd;border-radius:6px;">
-                <input type="date" id="logsUsuarioFiltroDataFim" style="padding:8px 10px;border:1px solid #ddd;border-radius:6px;">
-                <button onclick="carregarDetalheUsuarioLogs(0)" class="btn btn-primary" style="padding:8px 16px;">Filtrar</button>
-                <button onclick="logsUsuarioExportarCSV()" class="btn" style="padding:8px 16px;">⬇️ Exportar CSV</button>
+                <input type="date" id="logsUsuarioFiltroDataInicio">
+                <input type="date" id="logsUsuarioFiltroDataFim">
+                <button onclick="carregarDetalheUsuarioLogs(0)" class="btn btn-primary">Filtrar</button>
+                <button onclick="logsUsuarioExportarCSV()" class="btn btn-secondary">⬇️ Exportar CSV</button>
             </div>
 
             <div id="logsUsuarioLoading" class="loading">
@@ -856,8 +1006,8 @@
                 <p>Nenhum registro encontrado para os filtros selecionados</p>
             </div>
 
-            <div style="overflow-x:auto;">
-                <table id="logsUsuarioTable" style="display:none;">
+            <div class="logs-table-wrap" style="overflow-x:auto;">
+                <table class="table" id="logsUsuarioTable" style="display:none;">
                     <thead>
                         <tr>
                             <th>Data/Hora</th>
@@ -871,11 +1021,11 @@
                 </table>
             </div>
 
-            <div id="logsUsuarioPaginacao" style="display:none;justify-content:space-between;align-items:center;margin-top:16px;">
+            <div id="logsUsuarioPaginacao" class="logs-pagination" style="display:none;">
                 <span id="logsUsuarioPaginacaoInfo" style="color:#666;font-size:13px;"></span>
                 <div style="display:flex;gap:8px;">
-                    <button id="logsUsuarioBtnAnterior" onclick="logsUsuarioPaginaAnterior()" class="btn" style="padding:6px 14px;">‹ Anterior</button>
-                    <button id="logsUsuarioBtnProxima" onclick="logsUsuarioProximaPagina()" class="btn" style="padding:6px 14px;">Próxima ›</button>
+                    <button id="logsUsuarioBtnAnterior" onclick="logsUsuarioPaginaAnterior()" class="btn btn-secondary">‹ Anterior</button>
+                    <button id="logsUsuarioBtnProxima" onclick="logsUsuarioProximaPagina()" class="btn btn-secondary">Próxima ›</button>
                 </div>
             </div>
         </div>
@@ -1766,6 +1916,24 @@
             }
         }
 
+        const _avatarCores = ['#667eea', '#22c55e', '#f59e0b', '#ef4444', '#0ea5e9', '#8b5cf6', '#ec4899', '#14b8a6'];
+
+        function _avatarCor(semente) {
+            const str = String(semente || '');
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            return _avatarCores[Math.abs(hash) % _avatarCores.length];
+        }
+
+        function _iniciais(nome) {
+            if (!nome) return '?';
+            const partes = nome.trim().split(/\s+/).filter(Boolean);
+            if (partes.length === 0) return '?';
+            const primeira = partes[0][0] || '';
+            const ultima = partes.length > 1 ? partes[partes.length - 1][0] : '';
+            return (primeira + ultima).toUpperCase() || '?';
+        }
+
         function renderResumoLogsTable(usuarios) {
             const tbody = document.getElementById('logsResumoTableBody');
             tbody.innerHTML = '';
@@ -1777,24 +1945,37 @@
 
             usuarios.forEach(u => {
                 const tr = document.createElement('tr');
-                tr.style.cursor = 'pointer';
                 const chaveId = u.usuario_id === null ? 'none' : u.usuario_id;
                 tr.onclick = () => abrirRelatorioUsuarioLogs(chaveId);
 
                 const nomeExtra = u.username
-                    ? ` <span style="color:#999;">(${escapeHtml(u.username)})</span>`
+                    ? `<div class="logs-user-username">@${escapeHtml(u.username)}</div>`
                     : '';
                 const tipo = tipoBadge[u.tipo] || (u.tipo ? escapeHtml(u.tipo) : '<span style="color:#999;">—</span>');
-                const taxaCor = u.taxa_sucesso >= 90 ? '#155724' : (u.taxa_sucesso >= 50 ? '#856404' : '#721c24');
+                const taxaCor = u.taxa_sucesso >= 90 ? '#16a34a' : (u.taxa_sucesso >= 50 ? '#d97706' : '#dc2626');
 
                 tr.innerHTML = `
-                    <td><strong>${escapeHtml(u.nome)}</strong>${nomeExtra}</td>
+                    <td>
+                        <div class="logs-user-cell">
+                            <div class="logs-avatar" style="background:${_avatarCor(u.usuario_id ?? u.nome)}">${escapeHtml(_iniciais(u.nome))}</div>
+                            <div>
+                                <div class="logs-user-nome">${escapeHtml(u.nome)}</div>
+                                ${nomeExtra}
+                            </div>
+                        </div>
+                    </td>
                     <td>${tipo}</td>
                     <td>${u.total_acessos}</td>
-                    <td style="color:#155724;">${u.total_sucesso}</td>
-                    <td style="color:#721c24;">${u.total_falha}</td>
-                    <td style="color:${taxaCor};font-weight:600;">${u.taxa_sucesso}%</td>
+                    <td style="color:#16a34a;font-weight:600;">${u.total_sucesso}</td>
+                    <td style="color:#dc2626;font-weight:600;">${u.total_falha}</td>
+                    <td>
+                        <div class="logs-progress-wrap">
+                            <div class="logs-progress-bar"><div class="logs-progress-fill" style="width:${u.taxa_sucesso}%;background:${taxaCor}"></div></div>
+                            <span class="logs-progress-label" style="color:${taxaCor};">${u.taxa_sucesso}%</span>
+                        </div>
+                    </td>
                     <td>${escapeHtml(formatarDataHora(u.ultimo_acesso))}</td>
+                    <td class="logs-row-arrow">›</td>
                 `;
                 tbody.appendChild(tr);
             });
