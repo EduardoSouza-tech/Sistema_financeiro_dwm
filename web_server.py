@@ -378,13 +378,8 @@ else:
     print("?? Rate Limiting desabilitado (flask-limiter n�o instalado)")
 
 # ============================================================================
-# BACKUP AUTOMÁTICO POR E-MAIL (06h / 12h / 19h — horário de Brasília)
+# BACKUP AUTOMÁTICO POR E-MAIL — DESATIVADO (backups agora são somente sob demanda, via download)
 # ============================================================================
-try:
-    from backup_email import iniciar_scheduler as _iniciar_backup_scheduler
-    _backup_scheduler = _iniciar_backup_scheduler(app)
-except Exception as _e:
-    print(f"⚠️  Erro ao iniciar scheduler de backup: {_e}")
 
 # ============================================================================
 # MANIPULADORES DE ERRO GLOBAIS
@@ -12944,61 +12939,19 @@ def exportar_dados_cliente_admin(cliente_id):
 def admin_backup_manual():
     """
     Dispara backup manual do banco, separado por empresa.
-    Body JSON (todos opcionais):
-      { "modo": "email" | "download" | "ambos" }
-    - "email"    → gera zip e envia por e-mail (padrão)
-    - "download" → gera zip e retorna como download direto
-    - "ambos"    → envia por e-mail E retorna download
+    Gera um ZIP com os dados e retorna como download direto.
+    (Envio de backup por e-mail foi desativado.)
     """
     try:
-        from backup_email import gerar_backup_zip_por_empresa, RESEND_API_KEY, RESEND_FROM, EMAIL_DESTINO, _json_default
-        import resend as resend_lib
-
-        dados = request.get_json(silent=True) or {}
-        modo = dados.get('modo', 'email')
+        from backup_email import gerar_backup_zip_por_empresa
 
         DATABASE_URL_CHECK = os.getenv('DATABASE_URL', '')
         if not DATABASE_URL_CHECK:
             return jsonify({'success': False, 'error': 'DATABASE_URL não configurado'}), 500
 
-        print(f"📦 [BACKUP MANUAL] Iniciado por {request.usuario.get('username', '?')} — modo={modo}")
+        print(f"📦 [BACKUP MANUAL] Iniciado por {request.usuario.get('username', '?')}")
         zip_bytes, nome_arquivo, info = gerar_backup_zip_por_empresa()
         print(f"✅ [BACKUP MANUAL] Zip gerado: {nome_arquivo} ({len(zip_bytes)} bytes)")
-
-        enviado_email = False
-        erro_email = None
-
-        if modo in ('email', 'ambos'):
-            if not RESEND_API_KEY or not EMAIL_DESTINO:
-                erro_email = 'RESEND_API_KEY ou BACKUP_EMAIL_DESTINO não configurados'
-                print(f"⚠️  [BACKUP MANUAL] {erro_email}")
-            else:
-                try:
-                    corpo = f"""
-<html><body style="font-family:Arial,sans-serif;color:#333;">
-<h2 style="color:#3b82f6;">Backup Manual — Sistema DWM</h2>
-<p>Gerado em: <strong>{datetime.now().strftime('%d/%m/%Y às %H:%M')}</strong></p>
-<p><strong>Total de empresas:</strong> {info.get('total_empresas', '?')}</p>
-<p><strong>Total de registros:</strong> {info.get('total_registros', '?')}</p>
-<p style="color:#64748b;font-size:12px;margin-top:20px;">
-  Backup solicitado manualmente pelo administrador.<br>
-  Arquivo: <strong>{nome_arquivo}</strong>
-</p>
-</body></html>
-"""
-                    resend_lib.api_key = RESEND_API_KEY
-                    resend_lib.Emails.send({
-                        "from": RESEND_FROM,
-                        "to": [EMAIL_DESTINO],
-                        "subject": f"🔒 Backup Manual DWM — {datetime.now().strftime('%d/%m/%Y %H:%M')}",
-                        "html": corpo,
-                        "attachments": [{"filename": nome_arquivo, "content": list(zip_bytes)}],
-                    })
-                    enviado_email = True
-                    print(f"✅ [BACKUP MANUAL] E-mail enviado para {EMAIL_DESTINO}")
-                except Exception as e_mail:
-                    erro_email = str(e_mail)
-                    print(f"❌ [BACKUP MANUAL] Erro ao enviar e-mail: {e_mail}")
 
         # Registrar log
         try:
@@ -13012,25 +12965,11 @@ def admin_backup_manual():
         except Exception:
             pass
 
-        if modo == 'download' or modo == 'ambos':
-            from flask import make_response
-            response = make_response(zip_bytes)
-            response.headers['Content-Type'] = 'application/zip'
-            response.headers['Content-Disposition'] = f'attachment; filename="{nome_arquivo}"'
-            if enviado_email:
-                response.headers['X-Email-Sent'] = 'true'
-            return response
-
-        # Modo "email" — retorna JSON
-        return jsonify({
-            'success': True,
-            'nome_arquivo': nome_arquivo,
-            'total_empresas': info.get('total_empresas', 0),
-            'total_registros': info.get('total_registros', 0),
-            'email_enviado': enviado_email,
-            'email_destino': EMAIL_DESTINO if enviado_email else None,
-            'erro_email': erro_email,
-        })
+        from flask import make_response
+        response = make_response(zip_bytes)
+        response.headers['Content-Type'] = 'application/zip'
+        response.headers['Content-Disposition'] = f'attachment; filename="{nome_arquivo}"'
+        return response
 
     except Exception as e:
         print(f"❌ [BACKUP MANUAL] Erro: {e}")
@@ -13129,6 +13068,160 @@ def listar_proprietarios_disponiveis():
             'success': False,
             'error': f'Erro ao listar propriet�rios: {str(e)}'
         }), 500
+
+
+@app.route('/api/admin/logs-acesso', methods=['GET'])
+@require_admin
+def listar_logs_acesso():
+    """
+    Lista o histórico de logs de acesso (login/ações) com paginação e filtros.
+
+    Query params opcionais:
+      usuario_id   -> filtra por ID do usuário
+      acao         -> filtra por tipo de ação (match exato, ex: 'login', 'login_failed')
+      sucesso      -> 'true' ou 'false'
+      busca        -> busca livre em descrição / IP / username / nome do usuário
+      data_inicio  -> 'YYYY-MM-DD'
+      data_fim     -> 'YYYY-MM-DD'
+      limit        -> padrão 50, máximo 200
+      offset       -> padrão 0
+    """
+    try:
+        def _to_int(valor, padrao, minimo, maximo):
+            try:
+                v = int(valor)
+            except (TypeError, ValueError):
+                return padrao
+            return max(minimo, min(maximo, v))
+
+        limit = _to_int(request.args.get('limit'), 50, 1, 200)
+        offset = _to_int(request.args.get('offset'), 0, 0, 1_000_000)
+
+        usuario_id_raw = (request.args.get('usuario_id') or '').strip()
+        usuario_id = None
+        if usuario_id_raw:
+            try:
+                usuario_id = int(usuario_id_raw)
+            except ValueError:
+                return jsonify({'success': False, 'error': 'usuario_id inválido'}), 400
+
+        acao = (request.args.get('acao') or '').strip()[:100]
+
+        sucesso_raw = (request.args.get('sucesso') or '').strip().lower()
+        sucesso = None
+        if sucesso_raw in ('true', '1'):
+            sucesso = True
+        elif sucesso_raw in ('false', '0'):
+            sucesso = False
+
+        busca = (request.args.get('busca') or '').strip()[:200]
+
+        def _parse_data(valor):
+            if not valor:
+                return None
+            try:
+                return datetime.strptime(valor.strip(), '%Y-%m-%d').date()
+            except ValueError:
+                return None
+
+        data_inicio = _parse_data(request.args.get('data_inicio'))
+        data_fim = _parse_data(request.args.get('data_fim'))
+
+        # Montar filtros de forma 100% parametrizada (evita SQL injection)
+        condicoes = []
+        params = []
+
+        if usuario_id is not None:
+            condicoes.append("l.usuario_id = %s")
+            params.append(usuario_id)
+
+        if acao:
+            condicoes.append("l.acao = %s")
+            params.append(acao)
+
+        if sucesso is not None:
+            condicoes.append("l.sucesso = %s")
+            params.append(sucesso)
+
+        if busca:
+            condicoes.append("""(
+                l.descricao ILIKE %s OR
+                l.ip_address ILIKE %s OR
+                u.username ILIKE %s OR
+                u.nome_completo ILIKE %s
+            )""")
+            termo = f"%{busca}%"
+            params.extend([termo, termo, termo, termo])
+
+        if data_inicio:
+            condicoes.append("l.timestamp >= %s")
+            params.append(data_inicio)
+
+        if data_fim:
+            condicoes.append("l.timestamp < (%s::date + INTERVAL '1 day')")
+            params.append(data_fim)
+
+        where_sql = f"WHERE {' AND '.join(condicoes)}" if condicoes else ""
+
+        with get_db_connection(allow_global=True) as conn:
+            cursor = conn.cursor()
+
+            cursor.execute(f"""
+                SELECT COUNT(*) AS total
+                FROM log_acessos l
+                LEFT JOIN usuarios u ON u.id = l.usuario_id
+                {where_sql}
+            """, params)
+            total = cursor.fetchone()['total']
+
+            cursor.execute(f"""
+                SELECT
+                    l.id, l.usuario_id, l.acao, l.descricao, l.ip_address,
+                    l.sucesso, l.timestamp,
+                    u.username, u.nome_completo, u.tipo AS usuario_tipo
+                FROM log_acessos l
+                LEFT JOIN usuarios u ON u.id = l.usuario_id
+                {where_sql}
+                ORDER BY l.timestamp DESC
+                LIMIT %s OFFSET %s
+            """, params + [limit, offset])
+            rows = cursor.fetchall()
+
+            cursor.execute("SELECT DISTINCT acao FROM log_acessos ORDER BY acao")
+            acoes_disponiveis = [r['acao'] for r in cursor.fetchall()]
+
+        logs = []
+        for row in rows:
+            nome_usuario = row.get('nome_completo') or row.get('username')
+            if not nome_usuario:
+                nome_usuario = f"Usuário #{row['usuario_id']}" if row['usuario_id'] else 'Sistema'
+            logs.append({
+                'id': row['id'],
+                'usuario_id': row['usuario_id'],
+                'usuario_nome': nome_usuario,
+                'username': row.get('username'),
+                'usuario_tipo': row.get('usuario_tipo'),
+                'acao': row['acao'],
+                'descricao': row['descricao'],
+                'ip_address': row['ip_address'],
+                'sucesso': bool(row['sucesso']),
+                'timestamp': row['timestamp'].isoformat() if row['timestamp'] else None,
+            })
+
+        return jsonify({
+            'success': True,
+            'logs': logs,
+            'total': total,
+            'limit': limit,
+            'offset': offset,
+            'acoes_disponiveis': acoes_disponiveis,
+        })
+
+    except Exception as e:
+        print(f"❌ Erro ao listar logs de acesso: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': 'Erro ao carregar logs de acesso'}), 500
 
 
 @app.route('/api/admin/limpar-duplicatas-categorias', methods=['POST'])
@@ -23266,13 +23359,8 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"?? Erro ao inicializar tabelas de importa��o: {e}")
 
-    # Iniciar scheduler de backup automático por e-mail (06h / 12h / 19h)
-    try:
-        from backup_email import iniciar_scheduler
-        iniciar_scheduler(app)
-    except Exception as e:
-        print(f"⚠️  Erro ao iniciar scheduler de backup: {e}")
-    
+    # Backup automático por e-mail foi desativado — backups agora são somente sob demanda, via download
+
     # Configurar logging para produ��o (WARNING/ERROR apenas)
     import logging
     log_level = logging.WARNING if os.getenv('RAILWAY_ENVIRONMENT') else logging.INFO

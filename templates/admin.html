@@ -598,10 +598,62 @@
 
             <!-- Tab: Logs -->
             <div id="logsTab" class="tab-content">
-                <h2>Logs de Acesso</h2>
-                <p style="color: #666; margin-bottom: 20px;">Histórico de logins e acessos ao sistema</p>
-                <div class="empty-state">
-                    <p>Em desenvolvimento - Logs de acesso serão exibidos aqui</p>
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+                    <div>
+                        <h2>Logs de Acesso</h2>
+                        <p style="color: #666; margin-top: 5px;">Histórico de logins e ações administrativas no sistema</p>
+                    </div>
+                    <button onclick="loadLogsAcesso(0)" class="btn" style="padding:8px 16px;">🔄 Atualizar</button>
+                </div>
+
+                <!-- Filtros -->
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+                    <input type="text" id="logsFiltroBusca" placeholder="Buscar por usuário, IP ou descrição..."
+                           style="flex:1;min-width:220px;padding:8px 10px;border:1px solid #ddd;border-radius:6px;"
+                           onkeydown="if(event.key==='Enter') loadLogsAcesso(0);">
+                    <select id="logsFiltroAcao" style="padding:8px 10px;border:1px solid #ddd;border-radius:6px;">
+                        <option value="">Todas as ações</option>
+                    </select>
+                    <select id="logsFiltroSucesso" style="padding:8px 10px;border:1px solid #ddd;border-radius:6px;">
+                        <option value="">Sucesso e falhas</option>
+                        <option value="true">Somente sucesso</option>
+                        <option value="false">Somente falhas</option>
+                    </select>
+                    <input type="date" id="logsFiltroDataInicio" style="padding:8px 10px;border:1px solid #ddd;border-radius:6px;">
+                    <input type="date" id="logsFiltroDataFim" style="padding:8px 10px;border:1px solid #ddd;border-radius:6px;">
+                    <button onclick="loadLogsAcesso(0)" class="btn btn-primary" style="padding:8px 16px;">Filtrar</button>
+                    <button onclick="logsLimparFiltros()" class="btn" style="padding:8px 16px;">Limpar</button>
+                </div>
+
+                <div id="logsLoading" class="loading">
+                    <div class="spinner"></div>
+                    <p>Carregando logs...</p>
+                </div>
+
+                <div id="logsEmpty" class="empty-state" style="display:none;">
+                    <p>Nenhum log encontrado para os filtros selecionados</p>
+                </div>
+
+                <table id="logsTable" style="display:none;">
+                    <thead>
+                        <tr>
+                            <th>Data/Hora</th>
+                            <th>Usuário</th>
+                            <th>Ação</th>
+                            <th>Descrição</th>
+                            <th>IP</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsTableBody"></tbody>
+                </table>
+
+                <div id="logsPaginacao" style="display:none;justify-content:space-between;align-items:center;margin-top:16px;">
+                    <span id="logsPaginacaoInfo" style="color:#666;font-size:13px;"></span>
+                    <div style="display:flex;gap:8px;">
+                        <button id="logsBtnAnterior" onclick="logsPaginaAnterior()" class="btn" style="padding:6px 14px;">‹ Anterior</button>
+                        <button id="logsBtnProxima" onclick="logsProximaPagina()" class="btn" style="padding:6px 14px;">Próxima ›</button>
+                    </div>
                 </div>
             </div>
 
@@ -613,14 +665,8 @@
 
                 <!-- Ações -->
                 <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:28px;">
-                    <button id="btnBackupEmail" onclick="fazerBackup('email')" class="btn btn-primary" style="padding:12px 24px;font-size:15px;">
-                        📧 Enviar Backup por E-mail
-                    </button>
-                    <button id="btnBackupDownload" onclick="fazerBackup('download')" class="btn" style="padding:12px 24px;font-size:15px;background:#10b981;color:white;border:none;border-radius:6px;cursor:pointer;">
+                    <button id="btnBackupDownload" onclick="fazerBackup()" class="btn" style="padding:12px 24px;font-size:15px;background:#10b981;color:white;border:none;border-radius:6px;cursor:pointer;">
                         ⬇️ Baixar Backup Agora
-                    </button>
-                    <button id="btnBackupAmbos" onclick="fazerBackup('ambos')" class="btn" style="padding:12px 24px;font-size:15px;background:#6366f1;color:white;border:none;border-radius:6px;cursor:pointer;">
-                        🔒 E-mail + Download
                     </button>
                 </div>
 
@@ -628,7 +674,7 @@
                 <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:16px;margin-bottom:20px;font-size:13px;color:#0369a1;">
                     <strong>ℹ️ Como funciona:</strong><br>
                     O backup inclui todas as tabelas separadas por empresa (clientes, lançamentos, contratos, sessões, funcionários, eventos, etc.) mais tabelas globais (empresas, usuários).
-                    Os backups automáticos são enviados às <strong>06h, 12h e 19h</strong> (horário de Brasília).
+                    O arquivo é gerado na hora e baixado diretamente pelo navegador.
                 </div>
 
                 <!-- Status -->
@@ -1611,6 +1657,145 @@
             document.getElementById('accessTable').style.display = 'table';
         }
 
+        // ============================================================
+        // LOGS DE ACESSO
+        // ============================================================
+
+        let _logsOffset = 0;
+        const _logsLimit = 50;
+        let _logsTotal = 0;
+        let _logsAcoesCarregadas = false;
+
+        function escapeHtml(valor) {
+            if (valor === null || valor === undefined) return '';
+            return String(valor)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function logsLimparFiltros() {
+            document.getElementById('logsFiltroBusca').value = '';
+            document.getElementById('logsFiltroAcao').value = '';
+            document.getElementById('logsFiltroSucesso').value = '';
+            document.getElementById('logsFiltroDataInicio').value = '';
+            document.getElementById('logsFiltroDataFim').value = '';
+            loadLogsAcesso(0);
+        }
+
+        async function loadLogsAcesso(offset) {
+            _logsOffset = offset || 0;
+
+            const loading    = document.getElementById('logsLoading');
+            const table      = document.getElementById('logsTable');
+            const empty      = document.getElementById('logsEmpty');
+            const paginacao  = document.getElementById('logsPaginacao');
+
+            loading.classList.add('active');
+            table.style.display = 'none';
+            empty.style.display = 'none';
+            paginacao.style.display = 'none';
+
+            try {
+                const params = new URLSearchParams();
+                params.set('limit', _logsLimit);
+                params.set('offset', _logsOffset);
+
+                const busca      = document.getElementById('logsFiltroBusca').value.trim();
+                const acao       = document.getElementById('logsFiltroAcao').value;
+                const sucesso    = document.getElementById('logsFiltroSucesso').value;
+                const dataInicio = document.getElementById('logsFiltroDataInicio').value;
+                const dataFim    = document.getElementById('logsFiltroDataFim').value;
+
+                if (busca) params.set('busca', busca);
+                if (acao) params.set('acao', acao);
+                if (sucesso) params.set('sucesso', sucesso);
+                if (dataInicio) params.set('data_inicio', dataInicio);
+                if (dataFim) params.set('data_fim', dataFim);
+
+                const response = await fetch(`/api/admin/logs-acesso?${params.toString()}`, {
+                    credentials: 'include'
+                });
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Erro ao carregar logs');
+                }
+
+                _logsTotal = data.total || 0;
+
+                // Popular dropdown de ações (uma única vez)
+                if (!_logsAcoesCarregadas) {
+                    const select = document.getElementById('logsFiltroAcao');
+                    (data.acoes_disponiveis || []).forEach(a => {
+                        const opt = document.createElement('option');
+                        opt.value = a;
+                        opt.textContent = a;
+                        select.appendChild(opt);
+                    });
+                    _logsAcoesCarregadas = true;
+                }
+
+                renderLogsTable(data.logs || []);
+
+                if (!data.logs || data.logs.length === 0) {
+                    empty.style.display = 'block';
+                } else {
+                    table.style.display = 'table';
+                    paginacao.style.display = 'flex';
+                    const de  = _logsTotal === 0 ? 0 : _logsOffset + 1;
+                    const ate = Math.min(_logsOffset + _logsLimit, _logsTotal);
+                    document.getElementById('logsPaginacaoInfo').textContent = `Mostrando ${de}–${ate} de ${_logsTotal}`;
+                    document.getElementById('logsBtnAnterior').disabled = _logsOffset === 0;
+                    document.getElementById('logsBtnProxima').disabled = (_logsOffset + _logsLimit) >= _logsTotal;
+                }
+            } catch (error) {
+                console.error('Erro ao carregar logs de acesso:', error);
+                showAlert('Erro ao carregar logs de acesso', 'error');
+            } finally {
+                loading.classList.remove('active');
+            }
+        }
+
+        function logsPaginaAnterior() {
+            loadLogsAcesso(Math.max(0, _logsOffset - _logsLimit));
+        }
+
+        function logsProximaPagina() {
+            if (_logsOffset + _logsLimit < _logsTotal) {
+                loadLogsAcesso(_logsOffset + _logsLimit);
+            }
+        }
+
+        function renderLogsTable(logs) {
+            const tbody = document.getElementById('logsTableBody');
+            tbody.innerHTML = '';
+
+            logs.forEach(log => {
+                const tr = document.createElement('tr');
+
+                const dataHora = log.timestamp ? new Date(log.timestamp).toLocaleString('pt-BR') : '-';
+                const statusBadge = log.sucesso
+                    ? '<span class="badge badge-active">✅ Sucesso</span>'
+                    : '<span class="badge badge-inactive">❌ Falha</span>';
+                const usuarioExtra = log.username
+                    ? ` <span style="color:#999;">(${escapeHtml(log.username)})</span>`
+                    : '';
+
+                tr.innerHTML = `
+                    <td>${escapeHtml(dataHora)}</td>
+                    <td><strong>${escapeHtml(log.usuario_nome)}</strong>${usuarioExtra}</td>
+                    <td>${escapeHtml(log.acao)}</td>
+                    <td>${escapeHtml(log.descricao)}</td>
+                    <td>${escapeHtml(log.ip_address)}</td>
+                    <td>${statusBadge}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
         async function openNewAccessModal() {
             document.getElementById('accessModalTitle').textContent = 'Novo Vínculo Usuário-Empresa';
             document.getElementById('accessForm').reset();
@@ -2228,6 +2413,11 @@
             if (tabName === 'access') {
                 loadAccess();
             }
+
+            // Carregar logs de acesso
+            if (tabName === 'logs') {
+                loadLogsAcesso(0);
+            }
             
             // Se a aba de exportação foi selecionada, carregar os clientes
             if (tabName === 'export') {
@@ -2706,10 +2896,10 @@
             }
         });
 
-        // Exportar dados do cliente
-        async function fazerBackup(modo) {
-            const btns = ['btnBackupEmail', 'btnBackupDownload', 'btnBackupAmbos'];
-            btns.forEach(id => { const b = document.getElementById(id); if(b) b.disabled = true; });
+        // Gera e baixa o backup do banco (ZIP)
+        async function fazerBackup() {
+            const btn = document.getElementById('btnBackupDownload');
+            if (btn) btn.disabled = true;
 
             const loading = document.getElementById('backupLoading');
             const status  = document.getElementById('backupStatus');
@@ -2721,58 +2911,30 @@
                     method: 'POST',
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ modo }),
                 });
 
                 loading.style.display = 'none';
 
-                if (modo === 'download' || modo === 'ambos') {
-                    if (response.ok) {
-                        // Download direto
-                        const blob  = await response.blob();
-                        const fname = (response.headers.get('Content-Disposition') || '')
-                                        .match(/filename="?([^"]+)"?/)?.[1] || 'backup_DWM.zip';
-                        const url   = URL.createObjectURL(blob);
-                        const a     = document.createElement('a');
-                        a.href = url; a.download = fname; a.click();
-                        URL.revokeObjectURL(url);
-                        const emailEnviado = response.headers.get('X-Email-Sent') === 'true';
-                        status.style.display = 'block';
-                        status.style.background = '#d1fae5';
-                        status.style.color = '#065f46';
-                        status.style.border = '1px solid #6ee7b7';
-                        status.innerHTML = `✅ Backup baixado com sucesso!${emailEnviado ? '<br>📧 E-mail também enviado.' : ''}`;
-                    } else {
-                        const err = await response.json().catch(() => ({error: 'Erro desconhecido'}));
-                        status.style.display = 'block';
-                        status.style.background = '#fee2e2';
-                        status.style.color = '#991b1b';
-                        status.style.border = '1px solid #fca5a5';
-                        status.innerHTML = `❌ Erro: ${err.error || 'Falha ao gerar backup'}`;
-                    }
-                } else {
-                    // Modo email — resposta JSON
-                    const data = await response.json();
+                if (response.ok) {
+                    const blob  = await response.blob();
+                    const fname = (response.headers.get('Content-Disposition') || '')
+                                    .match(/filename="?([^"]+)"?/)?.[1] || 'backup_DWM.zip';
+                    const url   = URL.createObjectURL(blob);
+                    const a     = document.createElement('a');
+                    a.href = url; a.download = fname; a.click();
+                    URL.revokeObjectURL(url);
                     status.style.display = 'block';
-                    if (data.success) {
-                        status.style.background = '#d1fae5';
-                        status.style.color = '#065f46';
-                        status.style.border = '1px solid #6ee7b7';
-                        status.innerHTML = `
-                            ✅ Backup gerado com sucesso!<br>
-                            📁 Arquivo: <strong>${data.nome_arquivo}</strong><br>
-                            🏢 Empresas: <strong>${data.total_empresas}</strong> &nbsp;|&nbsp;
-                            📊 Registros: <strong>${data.total_registros}</strong><br>
-                            ${data.email_enviado
-                                ? `📧 E-mail enviado para <strong>${data.email_destino}</strong>`
-                                : `⚠️ E-mail não enviado${data.erro_email ? ': ' + data.erro_email : ''}`}
-                        `;
-                    } else {
-                        status.style.background = '#fee2e2';
-                        status.style.color = '#991b1b';
-                        status.style.border = '1px solid #fca5a5';
-                        status.innerHTML = `❌ Erro: ${data.error || 'Falha ao gerar backup'}`;
-                    }
+                    status.style.background = '#d1fae5';
+                    status.style.color = '#065f46';
+                    status.style.border = '1px solid #6ee7b7';
+                    status.innerHTML = `✅ Backup baixado com sucesso!`;
+                } else {
+                    const err = await response.json().catch(() => ({error: 'Erro desconhecido'}));
+                    status.style.display = 'block';
+                    status.style.background = '#fee2e2';
+                    status.style.color = '#991b1b';
+                    status.style.border = '1px solid #fca5a5';
+                    status.innerHTML = `❌ Erro: ${err.error || 'Falha ao gerar backup'}`;
                 }
             } catch(err) {
                 loading.style.display = 'none';
@@ -2782,7 +2944,7 @@
                 status.style.border = '1px solid #fca5a5';
                 status.innerHTML = `❌ Erro de comunicação: ${err.message}`;
             } finally {
-                btns.forEach(id => { const b = document.getElementById(id); if(b) b.disabled = false; });
+                if (btn) btn.disabled = false;
             }
         }
 
