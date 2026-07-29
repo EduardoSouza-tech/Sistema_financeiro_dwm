@@ -13099,11 +13099,15 @@ def listar_logs_acesso():
 
         usuario_id_raw = (request.args.get('usuario_id') or '').strip()
         usuario_id = None
+        filtrar_anonimo = False
         if usuario_id_raw:
-            try:
-                usuario_id = int(usuario_id_raw)
-            except ValueError:
-                return jsonify({'success': False, 'error': 'usuario_id inválido'}), 400
+            if usuario_id_raw.lower() == 'none':
+                filtrar_anonimo = True
+            else:
+                try:
+                    usuario_id = int(usuario_id_raw)
+                except ValueError:
+                    return jsonify({'success': False, 'error': 'usuario_id inválido'}), 400
 
         acao = (request.args.get('acao') or '').strip()[:100]
 
@@ -13131,7 +13135,9 @@ def listar_logs_acesso():
         condicoes = []
         params = []
 
-        if usuario_id is not None:
+        if filtrar_anonimo:
+            condicoes.append("l.usuario_id IS NULL")
+        elif usuario_id is not None:
             condicoes.append("l.usuario_id = %s")
             params.append(usuario_id)
 
@@ -13222,6 +13228,105 @@ def listar_logs_acesso():
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': 'Erro ao carregar logs de acesso'}), 500
+
+
+@app.route('/api/admin/logs-acesso/resumo', methods=['GET'])
+@require_admin
+def resumo_logs_acesso():
+    """
+    Retorna o histórico de acessos resumido por usuário (1 linha por usuário),
+    usado pela tela "Logs de Acesso". O detalhamento completo de cada usuário
+    é obtido em /api/admin/logs-acesso?usuario_id=<id>.
+
+    Query params opcionais:
+      busca -> filtra por nome ou username do usuário
+    """
+    try:
+        busca = (request.args.get('busca') or '').strip()[:200]
+
+        condicoes = []
+        params = []
+        if busca:
+            condicoes.append("(u.nome_completo ILIKE %s OR u.username ILIKE %s)")
+            termo = f"%{busca}%"
+            params.extend([termo, termo])
+        where_extra = f"AND {' AND '.join(condicoes)}" if condicoes else ""
+
+        with get_db_connection(allow_global=True) as conn:
+            cursor = conn.cursor()
+
+            cursor.execute(f"""
+                SELECT
+                    u.id AS usuario_id,
+                    u.nome_completo,
+                    u.username,
+                    u.tipo,
+                    u.ativo,
+                    COUNT(l.id) AS total_acessos,
+                    COUNT(*) FILTER (WHERE l.sucesso) AS total_sucesso,
+                    COUNT(*) FILTER (WHERE NOT l.sucesso) AS total_falha,
+                    MIN(l.timestamp) AS primeiro_acesso,
+                    MAX(l.timestamp) AS ultimo_acesso
+                FROM log_acessos l
+                JOIN usuarios u ON u.id = l.usuario_id
+                WHERE TRUE {where_extra}
+                GROUP BY u.id, u.nome_completo, u.username, u.tipo, u.ativo
+                ORDER BY MAX(l.timestamp) DESC
+            """, params)
+            linhas_usuarios = cursor.fetchall()
+
+            anonimo = None
+            if not busca:
+                cursor.execute("""
+                    SELECT
+                        COUNT(*) AS total_acessos,
+                        COUNT(*) FILTER (WHERE sucesso) AS total_sucesso,
+                        COUNT(*) FILTER (WHERE NOT sucesso) AS total_falha,
+                        MIN(timestamp) AS primeiro_acesso,
+                        MAX(timestamp) AS ultimo_acesso
+                    FROM log_acessos
+                    WHERE usuario_id IS NULL
+                """)
+                anonimo = cursor.fetchone()
+
+        def _montar_linha(usuario_id, nome, username, tipo, ativo, linha):
+            total = linha['total_acessos'] or 0
+            sucesso = linha['total_sucesso'] or 0
+            return {
+                'usuario_id': usuario_id,
+                'nome': nome,
+                'username': username,
+                'tipo': tipo,
+                'ativo': ativo,
+                'total_acessos': total,
+                'total_sucesso': sucesso,
+                'total_falha': linha['total_falha'] or 0,
+                'taxa_sucesso': round((sucesso / total) * 100, 1) if total else 0,
+                'primeiro_acesso': linha['primeiro_acesso'].isoformat() if linha['primeiro_acesso'] else None,
+                'ultimo_acesso': linha['ultimo_acesso'].isoformat() if linha['ultimo_acesso'] else None,
+            }
+
+        resumo = []
+        for row in linhas_usuarios:
+            nome = row.get('nome_completo') or row.get('username') or f"Usuário #{row['usuario_id']}"
+            resumo.append(_montar_linha(row['usuario_id'], nome, row.get('username'), row.get('tipo'), row.get('ativo'), row))
+
+        if anonimo and (anonimo['total_acessos'] or 0) > 0:
+            resumo.append(_montar_linha(None, 'Tentativas não identificadas', None, None, None, anonimo))
+
+        resumo.sort(key=lambda r: r['ultimo_acesso'] or '', reverse=True)
+
+        return jsonify({
+            'success': True,
+            'usuarios': resumo,
+            'total_usuarios': len(resumo),
+        })
+
+    except Exception as e:
+        print(f"❌ Erro ao gerar resumo de logs de acesso: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': 'Erro ao carregar resumo de logs de acesso'}), 500
 
 
 @app.route('/api/admin/limpar-duplicatas-categorias', methods=['POST'])

@@ -601,60 +601,41 @@
                 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
                     <div>
                         <h2>Logs de Acesso</h2>
-                        <p style="color: #666; margin-top: 5px;">Histórico de logins e ações administrativas no sistema</p>
+                        <p style="color: #666; margin-top: 5px;">Resumo de acessos por usuário — clique em um usuário para ver o relatório completo</p>
                     </div>
-                    <button onclick="loadLogsAcesso(0)" class="btn" style="padding:8px 16px;">🔄 Atualizar</button>
+                    <button onclick="loadResumoLogsAcesso()" class="btn" style="padding:8px 16px;">🔄 Atualizar</button>
                 </div>
 
-                <!-- Filtros -->
                 <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
-                    <input type="text" id="logsFiltroBusca" placeholder="Buscar por usuário, IP ou descrição..."
+                    <input type="text" id="logsResumoFiltroBusca" placeholder="Buscar por nome ou usuário..."
                            style="flex:1;min-width:220px;padding:8px 10px;border:1px solid #ddd;border-radius:6px;"
-                           onkeydown="if(event.key==='Enter') loadLogsAcesso(0);">
-                    <select id="logsFiltroAcao" style="padding:8px 10px;border:1px solid #ddd;border-radius:6px;">
-                        <option value="">Todas as ações</option>
-                    </select>
-                    <select id="logsFiltroSucesso" style="padding:8px 10px;border:1px solid #ddd;border-radius:6px;">
-                        <option value="">Sucesso e falhas</option>
-                        <option value="true">Somente sucesso</option>
-                        <option value="false">Somente falhas</option>
-                    </select>
-                    <input type="date" id="logsFiltroDataInicio" style="padding:8px 10px;border:1px solid #ddd;border-radius:6px;">
-                    <input type="date" id="logsFiltroDataFim" style="padding:8px 10px;border:1px solid #ddd;border-radius:6px;">
-                    <button onclick="loadLogsAcesso(0)" class="btn btn-primary" style="padding:8px 16px;">Filtrar</button>
-                    <button onclick="logsLimparFiltros()" class="btn" style="padding:8px 16px;">Limpar</button>
+                           onkeydown="if(event.key==='Enter') loadResumoLogsAcesso();">
+                    <button onclick="loadResumoLogsAcesso()" class="btn btn-primary" style="padding:8px 16px;">Filtrar</button>
                 </div>
 
-                <div id="logsLoading" class="loading">
+                <div id="logsResumoLoading" class="loading">
                     <div class="spinner"></div>
-                    <p>Carregando logs...</p>
+                    <p>Carregando resumo de acessos...</p>
                 </div>
 
-                <div id="logsEmpty" class="empty-state" style="display:none;">
-                    <p>Nenhum log encontrado para os filtros selecionados</p>
+                <div id="logsResumoEmpty" class="empty-state" style="display:none;">
+                    <p>Nenhum acesso registrado ainda</p>
                 </div>
 
-                <table id="logsTable" style="display:none;">
+                <table id="logsResumoTable" style="display:none;">
                     <thead>
                         <tr>
-                            <th>Data/Hora</th>
                             <th>Usuário</th>
-                            <th>Ação</th>
-                            <th>Descrição</th>
-                            <th>IP</th>
-                            <th>Status</th>
+                            <th>Tipo</th>
+                            <th>Total de Acessos</th>
+                            <th>Sucessos</th>
+                            <th>Falhas</th>
+                            <th>Taxa de Sucesso</th>
+                            <th>Último Acesso</th>
                         </tr>
                     </thead>
-                    <tbody id="logsTableBody"></tbody>
+                    <tbody id="logsResumoTableBody"></tbody>
                 </table>
-
-                <div id="logsPaginacao" style="display:none;justify-content:space-between;align-items:center;margin-top:16px;">
-                    <span id="logsPaginacaoInfo" style="color:#666;font-size:13px;"></span>
-                    <div style="display:flex;gap:8px;">
-                        <button id="logsBtnAnterior" onclick="logsPaginaAnterior()" class="btn" style="padding:6px 14px;">‹ Anterior</button>
-                        <button id="logsBtnProxima" onclick="logsProximaPagina()" class="btn" style="padding:6px 14px;">Próxima ›</button>
-                    </div>
-                </div>
             </div>
 
             <!-- Tab: Exportar Dados -->
@@ -833,6 +814,70 @@
                 </div>
             </div>
 
+        </div>
+    </div>
+
+    <!-- Modal: Relatório completo de acessos por usuário -->
+    <div id="logsUsuarioModal" class="modal">
+        <div class="modal-content" style="max-width: 960px;">
+            <div class="modal-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+                <div>
+                    <h3 id="logsUsuarioModalNome">Relatório de Acessos</h3>
+                    <p id="logsUsuarioModalSubtitulo" style="color:#666;font-size:13px;margin-top:4px;"></p>
+                </div>
+                <button type="button" onclick="fecharRelatorioUsuarioLogs()" class="btn" style="padding:6px 12px;">✕ Fechar</button>
+            </div>
+
+            <!-- KPIs -->
+            <div class="stats" id="logsUsuarioStats" style="margin-bottom:20px;"></div>
+
+            <!-- Filtros do relatório -->
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+                <select id="logsUsuarioFiltroAcao" style="padding:8px 10px;border:1px solid #ddd;border-radius:6px;">
+                    <option value="">Todas as ações</option>
+                </select>
+                <select id="logsUsuarioFiltroSucesso" style="padding:8px 10px;border:1px solid #ddd;border-radius:6px;">
+                    <option value="">Sucesso e falhas</option>
+                    <option value="true">Somente sucesso</option>
+                    <option value="false">Somente falhas</option>
+                </select>
+                <input type="date" id="logsUsuarioFiltroDataInicio" style="padding:8px 10px;border:1px solid #ddd;border-radius:6px;">
+                <input type="date" id="logsUsuarioFiltroDataFim" style="padding:8px 10px;border:1px solid #ddd;border-radius:6px;">
+                <button onclick="carregarDetalheUsuarioLogs(0)" class="btn btn-primary" style="padding:8px 16px;">Filtrar</button>
+                <button onclick="logsUsuarioExportarCSV()" class="btn" style="padding:8px 16px;">⬇️ Exportar CSV</button>
+            </div>
+
+            <div id="logsUsuarioLoading" class="loading">
+                <div class="spinner"></div>
+                <p>Carregando relatório...</p>
+            </div>
+
+            <div id="logsUsuarioEmpty" class="empty-state" style="display:none;">
+                <p>Nenhum registro encontrado para os filtros selecionados</p>
+            </div>
+
+            <div style="overflow-x:auto;">
+                <table id="logsUsuarioTable" style="display:none;">
+                    <thead>
+                        <tr>
+                            <th>Data/Hora</th>
+                            <th>Ação</th>
+                            <th>Descrição</th>
+                            <th>IP</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsUsuarioTableBody"></tbody>
+                </table>
+            </div>
+
+            <div id="logsUsuarioPaginacao" style="display:none;justify-content:space-between;align-items:center;margin-top:16px;">
+                <span id="logsUsuarioPaginacaoInfo" style="color:#666;font-size:13px;"></span>
+                <div style="display:flex;gap:8px;">
+                    <button id="logsUsuarioBtnAnterior" onclick="logsUsuarioPaginaAnterior()" class="btn" style="padding:6px 14px;">‹ Anterior</button>
+                    <button id="logsUsuarioBtnProxima" onclick="logsUsuarioProximaPagina()" class="btn" style="padding:6px 14px;">Próxima ›</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1658,13 +1703,8 @@
         }
 
         // ============================================================
-        // LOGS DE ACESSO
+        // LOGS DE ACESSO (resumo por usuário + relatório detalhado)
         // ============================================================
-
-        let _logsOffset = 0;
-        const _logsLimit = 50;
-        let _logsTotal = 0;
-        let _logsAcoesCarregadas = false;
 
         function escapeHtml(valor) {
             if (valor === null || valor === undefined) return '';
@@ -1676,22 +1716,159 @@
                 .replace(/'/g, '&#39;');
         }
 
-        function logsLimparFiltros() {
-            document.getElementById('logsFiltroBusca').value = '';
-            document.getElementById('logsFiltroAcao').value = '';
-            document.getElementById('logsFiltroSucesso').value = '';
-            document.getElementById('logsFiltroDataInicio').value = '';
-            document.getElementById('logsFiltroDataFim').value = '';
-            loadLogsAcesso(0);
+        function formatarDataHora(iso) {
+            return iso ? new Date(iso).toLocaleString('pt-BR') : '—';
         }
 
-        async function loadLogsAcesso(offset) {
-            _logsOffset = offset || 0;
+        // ---- Tela principal: resumo por usuário ----
 
-            const loading    = document.getElementById('logsLoading');
-            const table      = document.getElementById('logsTable');
-            const empty      = document.getElementById('logsEmpty');
-            const paginacao  = document.getElementById('logsPaginacao');
+        let _logsResumoPorId = {};
+
+        async function loadResumoLogsAcesso() {
+            const loading = document.getElementById('logsResumoLoading');
+            const table   = document.getElementById('logsResumoTable');
+            const empty   = document.getElementById('logsResumoEmpty');
+
+            loading.classList.add('active');
+            table.style.display = 'none';
+            empty.style.display = 'none';
+
+            try {
+                const busca = document.getElementById('logsResumoFiltroBusca').value.trim();
+                const params = new URLSearchParams();
+                if (busca) params.set('busca', busca);
+
+                const response = await fetch(`/api/admin/logs-acesso/resumo?${params.toString()}`, {
+                    credentials: 'include'
+                });
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Erro ao carregar resumo de logs');
+                }
+
+                const usuarios = data.usuarios || [];
+                _logsResumoPorId = {};
+                usuarios.forEach(u => { _logsResumoPorId[u.usuario_id === null ? 'none' : u.usuario_id] = u; });
+
+                renderResumoLogsTable(usuarios);
+
+                if (usuarios.length === 0) {
+                    empty.style.display = 'block';
+                } else {
+                    table.style.display = 'table';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar resumo de logs de acesso:', error);
+                showAlert('Erro ao carregar resumo de logs de acesso', 'error');
+            } finally {
+                loading.classList.remove('active');
+            }
+        }
+
+        function renderResumoLogsTable(usuarios) {
+            const tbody = document.getElementById('logsResumoTableBody');
+            tbody.innerHTML = '';
+
+            const tipoBadge = {
+                'admin': '<span class="badge badge-admin">Admin</span>',
+                'cliente': '<span class="badge badge-client">Cliente</span>',
+            };
+
+            usuarios.forEach(u => {
+                const tr = document.createElement('tr');
+                tr.style.cursor = 'pointer';
+                const chaveId = u.usuario_id === null ? 'none' : u.usuario_id;
+                tr.onclick = () => abrirRelatorioUsuarioLogs(chaveId);
+
+                const nomeExtra = u.username
+                    ? ` <span style="color:#999;">(${escapeHtml(u.username)})</span>`
+                    : '';
+                const tipo = tipoBadge[u.tipo] || (u.tipo ? escapeHtml(u.tipo) : '<span style="color:#999;">—</span>');
+                const taxaCor = u.taxa_sucesso >= 90 ? '#155724' : (u.taxa_sucesso >= 50 ? '#856404' : '#721c24');
+
+                tr.innerHTML = `
+                    <td><strong>${escapeHtml(u.nome)}</strong>${nomeExtra}</td>
+                    <td>${tipo}</td>
+                    <td>${u.total_acessos}</td>
+                    <td style="color:#155724;">${u.total_sucesso}</td>
+                    <td style="color:#721c24;">${u.total_falha}</td>
+                    <td style="color:${taxaCor};font-weight:600;">${u.taxa_sucesso}%</td>
+                    <td>${escapeHtml(formatarDataHora(u.ultimo_acesso))}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ---- Modal: relatório completo do usuário ----
+
+        let _logsUsuarioAtual = null;   // chave (id ou 'none') do usuário aberto no modal
+        let _logsUsuarioOffset = 0;
+        const _logsUsuarioLimit = 50;
+        let _logsUsuarioTotal = 0;
+        let _logsUsuarioAcoesCarregadas = false;
+
+        function abrirRelatorioUsuarioLogs(chaveId) {
+            const resumo = _logsResumoPorId[chaveId];
+            if (!resumo) return;
+
+            _logsUsuarioAtual = chaveId;
+            _logsUsuarioAcoesCarregadas = false;
+            document.getElementById('logsUsuarioFiltroAcao').innerHTML = '<option value="">Todas as ações</option>';
+            document.getElementById('logsUsuarioFiltroSucesso').value = '';
+            document.getElementById('logsUsuarioFiltroDataInicio').value = '';
+            document.getElementById('logsUsuarioFiltroDataFim').value = '';
+
+            document.getElementById('logsUsuarioModalNome').textContent = resumo.nome;
+            const subtitulo = resumo.username
+                ? `Usuário: ${resumo.username}${resumo.tipo ? ' • ' + resumo.tipo : ''}${resumo.ativo === false ? ' • Inativo' : ''}`
+                : 'Tentativas de login com usuário não identificado';
+            document.getElementById('logsUsuarioModalSubtitulo').textContent = subtitulo;
+
+            document.getElementById('logsUsuarioStats').innerHTML = `
+                <div class="stat-card">
+                    <h3>${resumo.total_acessos}</h3>
+                    <p>Total de Acessos</p>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #22c55e 0%, #15803d 100%);">
+                    <h3>${resumo.total_sucesso}</h3>
+                    <p>Sucessos</p>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);">
+                    <h3>${resumo.total_falha}</h3>
+                    <p>Falhas</p>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%);">
+                    <h3>${resumo.taxa_sucesso}%</h3>
+                    <p>Taxa de Sucesso</p>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);">
+                    <h3 style="font-size:16px;">${escapeHtml(formatarDataHora(resumo.primeiro_acesso))}</h3>
+                    <p>Primeiro Acesso</p>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);">
+                    <h3 style="font-size:16px;">${escapeHtml(formatarDataHora(resumo.ultimo_acesso))}</h3>
+                    <p>Último Acesso</p>
+                </div>
+            `;
+
+            document.getElementById('logsUsuarioModal').classList.add('active');
+            carregarDetalheUsuarioLogs(0);
+        }
+
+        function fecharRelatorioUsuarioLogs() {
+            document.getElementById('logsUsuarioModal').classList.remove('active');
+            _logsUsuarioAtual = null;
+        }
+
+        async function carregarDetalheUsuarioLogs(offset) {
+            if (_logsUsuarioAtual === null || _logsUsuarioAtual === undefined) return;
+            _logsUsuarioOffset = offset || 0;
+
+            const loading   = document.getElementById('logsUsuarioLoading');
+            const table     = document.getElementById('logsUsuarioTable');
+            const empty     = document.getElementById('logsUsuarioEmpty');
+            const paginacao = document.getElementById('logsUsuarioPaginacao');
 
             loading.classList.add('active');
             table.style.display = 'none';
@@ -1700,16 +1877,15 @@
 
             try {
                 const params = new URLSearchParams();
-                params.set('limit', _logsLimit);
-                params.set('offset', _logsOffset);
+                params.set('usuario_id', _logsUsuarioAtual);
+                params.set('limit', _logsUsuarioLimit);
+                params.set('offset', _logsUsuarioOffset);
 
-                const busca      = document.getElementById('logsFiltroBusca').value.trim();
-                const acao       = document.getElementById('logsFiltroAcao').value;
-                const sucesso    = document.getElementById('logsFiltroSucesso').value;
-                const dataInicio = document.getElementById('logsFiltroDataInicio').value;
-                const dataFim    = document.getElementById('logsFiltroDataFim').value;
+                const acao       = document.getElementById('logsUsuarioFiltroAcao').value;
+                const sucesso    = document.getElementById('logsUsuarioFiltroSucesso').value;
+                const dataInicio = document.getElementById('logsUsuarioFiltroDataInicio').value;
+                const dataFim    = document.getElementById('logsUsuarioFiltroDataFim').value;
 
-                if (busca) params.set('busca', busca);
                 if (acao) params.set('acao', acao);
                 if (sucesso) params.set('sucesso', sucesso);
                 if (dataInicio) params.set('data_inicio', dataInicio);
@@ -1721,72 +1897,68 @@
                 const data = await response.json();
 
                 if (!response.ok || !data.success) {
-                    throw new Error(data.error || 'Erro ao carregar logs');
+                    throw new Error(data.error || 'Erro ao carregar relatório');
                 }
 
-                _logsTotal = data.total || 0;
+                _logsUsuarioTotal = data.total || 0;
 
-                // Popular dropdown de ações (uma única vez)
-                if (!_logsAcoesCarregadas) {
-                    const select = document.getElementById('logsFiltroAcao');
+                if (!_logsUsuarioAcoesCarregadas) {
+                    const select = document.getElementById('logsUsuarioFiltroAcao');
                     (data.acoes_disponiveis || []).forEach(a => {
                         const opt = document.createElement('option');
                         opt.value = a;
                         opt.textContent = a;
                         select.appendChild(opt);
                     });
-                    _logsAcoesCarregadas = true;
+                    _logsUsuarioAcoesCarregadas = true;
                 }
 
-                renderLogsTable(data.logs || []);
+                renderLogsUsuarioTable(data.logs || []);
 
                 if (!data.logs || data.logs.length === 0) {
                     empty.style.display = 'block';
                 } else {
                     table.style.display = 'table';
                     paginacao.style.display = 'flex';
-                    const de  = _logsTotal === 0 ? 0 : _logsOffset + 1;
-                    const ate = Math.min(_logsOffset + _logsLimit, _logsTotal);
-                    document.getElementById('logsPaginacaoInfo').textContent = `Mostrando ${de}–${ate} de ${_logsTotal}`;
-                    document.getElementById('logsBtnAnterior').disabled = _logsOffset === 0;
-                    document.getElementById('logsBtnProxima').disabled = (_logsOffset + _logsLimit) >= _logsTotal;
+                    const de  = _logsUsuarioTotal === 0 ? 0 : _logsUsuarioOffset + 1;
+                    const ate = Math.min(_logsUsuarioOffset + _logsUsuarioLimit, _logsUsuarioTotal);
+                    document.getElementById('logsUsuarioPaginacaoInfo').textContent = `Mostrando ${de}–${ate} de ${_logsUsuarioTotal}`;
+                    document.getElementById('logsUsuarioBtnAnterior').disabled = _logsUsuarioOffset === 0;
+                    document.getElementById('logsUsuarioBtnProxima').disabled = (_logsUsuarioOffset + _logsUsuarioLimit) >= _logsUsuarioTotal;
                 }
             } catch (error) {
-                console.error('Erro ao carregar logs de acesso:', error);
-                showAlert('Erro ao carregar logs de acesso', 'error');
+                console.error('Erro ao carregar relatório de acessos:', error);
+                showAlert('Erro ao carregar relatório de acessos', 'error');
             } finally {
                 loading.classList.remove('active');
             }
         }
 
-        function logsPaginaAnterior() {
-            loadLogsAcesso(Math.max(0, _logsOffset - _logsLimit));
+        function logsUsuarioPaginaAnterior() {
+            carregarDetalheUsuarioLogs(Math.max(0, _logsUsuarioOffset - _logsUsuarioLimit));
         }
 
-        function logsProximaPagina() {
-            if (_logsOffset + _logsLimit < _logsTotal) {
-                loadLogsAcesso(_logsOffset + _logsLimit);
+        function logsUsuarioProximaPagina() {
+            if (_logsUsuarioOffset + _logsUsuarioLimit < _logsUsuarioTotal) {
+                carregarDetalheUsuarioLogs(_logsUsuarioOffset + _logsUsuarioLimit);
             }
         }
 
-        function renderLogsTable(logs) {
-            const tbody = document.getElementById('logsTableBody');
+        let _logsUsuarioLogsCarregados = [];
+
+        function renderLogsUsuarioTable(logs) {
+            _logsUsuarioLogsCarregados = logs;
+            const tbody = document.getElementById('logsUsuarioTableBody');
             tbody.innerHTML = '';
 
             logs.forEach(log => {
                 const tr = document.createElement('tr');
-
-                const dataHora = log.timestamp ? new Date(log.timestamp).toLocaleString('pt-BR') : '-';
                 const statusBadge = log.sucesso
                     ? '<span class="badge badge-active">✅ Sucesso</span>'
                     : '<span class="badge badge-inactive">❌ Falha</span>';
-                const usuarioExtra = log.username
-                    ? ` <span style="color:#999;">(${escapeHtml(log.username)})</span>`
-                    : '';
 
                 tr.innerHTML = `
-                    <td>${escapeHtml(dataHora)}</td>
-                    <td><strong>${escapeHtml(log.usuario_nome)}</strong>${usuarioExtra}</td>
+                    <td>${escapeHtml(formatarDataHora(log.timestamp))}</td>
                     <td>${escapeHtml(log.acao)}</td>
                     <td>${escapeHtml(log.descricao)}</td>
                     <td>${escapeHtml(log.ip_address)}</td>
@@ -1794,6 +1966,42 @@
                 `;
                 tbody.appendChild(tr);
             });
+        }
+
+        // Protege contra CSV injection: campos que começam com =,+,-,@ recebem um apóstrofo na frente
+        function _csvCampo(valor) {
+            let texto = (valor === null || valor === undefined) ? '' : String(valor);
+            if (/^[=+\-@]/.test(texto)) texto = "'" + texto;
+            return `"${texto.replace(/"/g, '""')}"`;
+        }
+
+        function logsUsuarioExportarCSV() {
+            if (!_logsUsuarioLogsCarregados || _logsUsuarioLogsCarregados.length === 0) {
+                showAlert('Não há registros carregados para exportar', 'error');
+                return;
+            }
+
+            const linhas = [
+                ['Data/Hora', 'Ação', 'Descrição', 'IP', 'Status'].map(_csvCampo).join(';')
+            ];
+            _logsUsuarioLogsCarregados.forEach(log => {
+                linhas.push([
+                    formatarDataHora(log.timestamp),
+                    log.acao || '',
+                    log.descricao || '',
+                    log.ip_address || '',
+                    log.sucesso ? 'Sucesso' : 'Falha'
+                ].map(_csvCampo).join(';'));
+            });
+
+            const nomeUsuario = document.getElementById('logsUsuarioModalNome').textContent || 'usuario';
+            const nomeArquivo = `logs_acesso_${nomeUsuario.replace(/[^a-zA-Z0-9]+/g, '_')}.csv`;
+
+            const blob = new Blob(['﻿' + linhas.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = nomeArquivo; a.click();
+            URL.revokeObjectURL(url);
         }
 
         async function openNewAccessModal() {
@@ -2414,9 +2622,9 @@
                 loadAccess();
             }
 
-            // Carregar logs de acesso
+            // Carregar resumo de logs de acesso
             if (tabName === 'logs') {
-                loadLogsAcesso(0);
+                loadResumoLogsAcesso();
             }
             
             // Se a aba de exportação foi selecionada, carregar os clientes
