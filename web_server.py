@@ -13107,8 +13107,8 @@ def listar_proprietarios_disponiveis():
                 })
         
         cursor.close()
-        db_temp.return_to_pool(conn)
-        
+        database.return_to_pool(conn)
+
         # Ordenar por nome
         proprietarios_info.sort(key=lambda x: x['nome'])
         
@@ -13170,7 +13170,7 @@ def limpar_duplicatas_categorias():
         if not duplicatas:
             print('? Nenhuma duplicata encontrada!')
             cursor.close()
-            db.return_to_pool(conn)
+            database.return_to_pool(conn)
             return jsonify({
                 'success': True,
                 'message': 'Nenhuma duplicata encontrada',
@@ -13205,8 +13205,8 @@ def limpar_duplicatas_categorias():
         
         conn.commit()
         cursor.close()
-        db.return_to_pool(conn)
-        
+        database.return_to_pool(conn)
+
         print(f'\n? Removidas {len(ids_removidos)} duplicatas!')
         print('='*80 + '\n')
         
@@ -13269,7 +13269,7 @@ def limpar_duplicatas_extrato():
         if registros_para_deletar == 0:
             print('? Nenhuma duplicata encontrada!')
             cursor.close()
-            db.return_to_pool(conn)
+            database.return_to_pool(conn)
             return jsonify({
                 'success': True,
                 'message': 'Nenhuma duplicata encontrada',
@@ -13340,8 +13340,8 @@ def limpar_duplicatas_extrato():
             print(f'\n?? Saldo atualizado: R$ {saldo_info["saldo_atual"]:,.2f}')
         
         cursor.close()
-        db.return_to_pool(conn)
-        
+        database.return_to_pool(conn)
+
         print('? Limpeza conclu�da com sucesso!')
         print('='*80 + '\n')
         
