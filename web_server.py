@@ -8407,31 +8407,36 @@ def listar_eventos():
         data_inicio = request.args.get('data_inicio')
         data_fim = request.args.get('data_fim')
         status = request.args.get('status')
-        
+        cliente = request.args.get('cliente')
+
         conn = db.get_connection()
         cursor = conn.cursor()
-        
+
         query = """
             SELECT id, empresa_id, nome_evento, data_evento::text, nf_associada,
-                   valor_liquido_nf, custo_evento, margem, tipo_evento, status,
-                   observacoes, data_criacao::text, data_atualizacao::text
+                   cliente, valor_bruto_nf, valor_liquido_nf, custo_evento, margem,
+                   tipo_evento, status, observacoes, data_criacao::text, data_atualizacao::text
             FROM eventos
             WHERE empresa_id = %s
         """
         params = [empresa_id]
-        
+
         if data_inicio:
             query += " AND data_evento >= %s"
             params.append(data_inicio)
-        
+
         if data_fim:
             query += " AND data_evento <= %s"
             params.append(data_fim)
-        
+
         if status:
             query += " AND status = %s"
             params.append(status)
-        
+
+        if cliente:
+            query += " AND cliente ILIKE %s"
+            params.append(f"%{cliente}%")
+
         query += " ORDER BY data_evento DESC"
         
         logger.info(f"?? [DEBUG LOAD] Query SQL: {query}")
@@ -8456,6 +8461,8 @@ def listar_eventos():
                     'nome_evento': row['nome_evento'],
                     'data_evento': safe_isoformat(row['data_evento']),
                     'nf_associada': row['nf_associada'],
+                    'cliente': row['cliente'],
+                    'valor_bruto_nf': float(row['valor_bruto_nf']) if row['valor_bruto_nf'] else None,
                     'valor_liquido_nf': float(row['valor_liquido_nf']) if row['valor_liquido_nf'] else None,
                     'custo_evento': float(row['custo_evento']) if row['custo_evento'] else None,
                     'margem': float(row['margem']) if row['margem'] else None,
@@ -8472,14 +8479,16 @@ def listar_eventos():
                     'nome_evento': row[2],
                     'data_evento': safe_isoformat(row[3]),
                     'nf_associada': row[4],
-                    'valor_liquido_nf': float(row[5]) if row[5] else None,
-                    'custo_evento': float(row[6]) if row[6] else None,
-                    'margem': float(row[7]) if row[7] else None,
-                    'tipo_evento': row[8],
-                    'status': row[9],
-                    'observacoes': row[10],
-                    'data_criacao': safe_isoformat(row[11]),
-                    'data_atualizacao': safe_isoformat(row[12])
+                    'cliente': row[5],
+                    'valor_bruto_nf': float(row[6]) if row[6] else None,
+                    'valor_liquido_nf': float(row[7]) if row[7] else None,
+                    'custo_evento': float(row[8]) if row[8] else None,
+                    'margem': float(row[9]) if row[9] else None,
+                    'tipo_evento': row[10],
+                    'status': row[11],
+                    'observacoes': row[12],
+                    'data_criacao': safe_isoformat(row[13]),
+                    'data_atualizacao': safe_isoformat(row[14])
                 })
         
         logger.info(f"[EVENTOS LIST] Total eventos: {len(eventos)}")
@@ -8529,18 +8538,20 @@ def criar_evento():
         cursor = conn.cursor()
         
         query = """
-            INSERT INTO eventos 
-            (empresa_id, nome_evento, data_evento, nf_associada, valor_liquido_nf,
-             custo_evento, margem, tipo_evento, status, observacoes)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO eventos
+            (empresa_id, nome_evento, data_evento, nf_associada, cliente, valor_bruto_nf,
+             valor_liquido_nf, custo_evento, margem, tipo_evento, status, observacoes)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """
-        
+
         cursor.execute(query, (
             empresa_id,
             dados['nome_evento'],
             dados['data_evento'],
             dados.get('nf_associada'),
+            dados.get('cliente'),
+            dados.get('valor_bruto_nf'),
             dados.get('valor_liquido_nf'),
             dados.get('custo_evento'),
             dados.get('margem'),
@@ -8611,8 +8622,8 @@ def atualizar_evento(evento_id):
         valores = []
         
         campos_possiveis = [
-            'nome_evento', 'data_evento', 'nf_associada', 'valor_liquido_nf',
-            'custo_evento', 'margem', 'tipo_evento', 'status', 'observacoes'
+            'nome_evento', 'data_evento', 'nf_associada', 'cliente', 'valor_bruto_nf',
+            'valor_liquido_nf', 'custo_evento', 'margem', 'tipo_evento', 'status', 'observacoes'
         ]
         
         for campo in campos_possiveis:
@@ -8662,13 +8673,13 @@ def atualizar_evento(evento_id):
         
         # 6. Verificacao pos-commit - ler de volta do banco
         cursor.execute(
-            """SELECT id, nome_evento, data_evento::text, nf_associada, valor_liquido_nf,
-                      custo_evento, margem, tipo_evento, status, observacoes
+            """SELECT id, nome_evento, data_evento::text, nf_associada, cliente, valor_bruto_nf,
+                      valor_liquido_nf, custo_evento, margem, tipo_evento, status, observacoes
                FROM eventos WHERE id = %s""",
             (evento_id,)
         )
         evento_atualizado = cursor.fetchone()
-        
+
         if evento_atualizado:
             if isinstance(evento_atualizado, dict):
                 data_depois = evento_atualizado['data_evento']
@@ -8677,6 +8688,8 @@ def atualizar_evento(evento_id):
                     'nome_evento': evento_atualizado['nome_evento'],
                     'data_evento': safe_isoformat(evento_atualizado['data_evento']),
                     'nf_associada': evento_atualizado['nf_associada'],
+                    'cliente': evento_atualizado['cliente'],
+                    'valor_bruto_nf': float(evento_atualizado['valor_bruto_nf']) if evento_atualizado['valor_bruto_nf'] else None,
                     'valor_liquido_nf': float(evento_atualizado['valor_liquido_nf']) if evento_atualizado['valor_liquido_nf'] else None,
                     'custo_evento': float(evento_atualizado['custo_evento']) if evento_atualizado['custo_evento'] else None,
                     'margem': float(evento_atualizado['margem']) if evento_atualizado['margem'] else None,

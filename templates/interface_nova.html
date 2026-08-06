@@ -3482,11 +3482,17 @@
                                 <option value="CANCELADO">Cancelado</option>
                             </select>
                         </div>
+                        <div style="flex: 1; min-width: 150px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Cliente:</label>
+                            <input type="text" id="filtro-cliente-evento" list="datalist-clientes-evento" onchange="loadEventos()" placeholder="Todos" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
                         <button onclick="limparFiltrosEvento()" class="btn btn-secondary" style="padding: 8px 20px; background: #95a5a6;">
                             🔄 Limpar
                         </button>
                     </div>
                 </div>
+
+                <datalist id="datalist-clientes-evento"></datalist>
 
                 <!-- Tabela de Eventos -->
                 <div class="table-container">
@@ -3494,8 +3500,10 @@
                         <thead>
                             <tr>
                                 <th style="width: 200px;">Nome Evento</th>
+                                <th style="width: 150px;">Cliente</th>
                                 <th style="width: 100px;">Data</th>
                                 <th style="width: 120px;">NF Associada</th>
+                                <th style="width: 130px;">Valor Bruto NF</th>
                                 <th style="width: 130px;">Valor Líquido NF</th>
                                 <th style="width: 130px;">Custo do Evento</th>
                                 <th id="th-eventos-margem" style="width: 120px;">Margem</th>
@@ -3506,7 +3514,7 @@
                             </tr>
                         </thead>
                         <tbody id="tbody-eventos">
-                            <tr><td colspan="10" id="td-loading-eventos" class="loading">Carregando...</td></tr>
+                            <tr><td colspan="12" id="td-loading-eventos" class="loading">Carregando...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -3523,9 +3531,16 @@
                         <form id="form-evento" onsubmit="salvarEvento(event); return false;">
                             <input type="hidden" id="evento-id">
                             
-                            <div class="form-group">
-                                <label for="evento-nome">Nome do Evento: <span style="color: red;">*</span></label>
-                                <input type="text" id="evento-nome" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <div class="form-group">
+                                    <label for="evento-nome">Nome do Evento: <span style="color: red;">*</span></label>
+                                    <input type="text" id="evento-nome" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="evento-cliente">Cliente:</label>
+                                    <input type="text" id="evento-cliente" list="datalist-clientes-evento" placeholder="Digite ou selecione um cliente" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                </div>
                             </div>
 
                             <div class="form-group">
@@ -3538,9 +3553,16 @@
                                 <input type="text" id="evento-nf" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                             </div>
 
-                            <div class="form-group">
-                                <label for="evento-valor-liquido">Valor Líquido NF:</label>
-                                <input type="number" id="evento-valor-liquido" step="0.01" onchange="calcularMargemEvento()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <div class="form-group">
+                                    <label for="evento-valor-bruto">Valor Bruto NF:</label>
+                                    <input type="number" id="evento-valor-bruto" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="evento-valor-liquido">Valor Líquido NF:</label>
+                                    <input type="number" id="evento-valor-liquido" step="0.01" onchange="calcularMargemEvento()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                </div>
                             </div>
 
                             <div class="form-group">
@@ -11804,7 +11826,8 @@
         function abrirModalEvento(evento = null) {
             const modal = document.getElementById('modal-evento');
             const title = document.getElementById('modal-evento-title');
-            
+            carregarClientesDatalistEvento();
+
             if (evento) {
                 console.log('🔍 [DEBUG EVENTO] Abrindo modal para edição:', evento);
                 console.log('🔍 [DEBUG EVENTO] data_evento original:', evento.data_evento);
@@ -11827,6 +11850,8 @@
                 console.log('🔍 [DEBUG EVENTO] data_evento formatada para input:', dataFormatada);
                 
                 document.getElementById('evento-nf').value = evento.nf_associada || '';
+                document.getElementById('evento-cliente').value = evento.cliente || '';
+                document.getElementById('evento-valor-bruto').value = evento.valor_bruto_nf || '';
                 document.getElementById('evento-valor-liquido').value = evento.valor_liquido_nf || '';
                 document.getElementById('evento-custo').value = evento.custo_evento || '';
                 document.getElementById('evento-margem').value = evento.margem || '';
@@ -11886,6 +11911,8 @@
                 nome_evento: document.getElementById('evento-nome').value,
                 data_evento: dataInput,
                 nf_associada: document.getElementById('evento-nf').value || null,
+                cliente: document.getElementById('evento-cliente').value || null,
+                valor_bruto_nf: parseFloat(document.getElementById('evento-valor-bruto').value) || null,
                 valor_liquido_nf: parseFloat(document.getElementById('evento-valor-liquido').value) || null,
                 custo_evento: parseFloat(document.getElementById('evento-custo').value) || null,
                 margem: parseFloat(document.getElementById('evento-margem').value) || null,
@@ -11949,11 +11976,15 @@
                 const dataInicio = document.getElementById('filtro-data-inicio-evento').value;
                 const dataFim = document.getElementById('filtro-data-fim-evento').value;
                 const status = document.getElementById('filtro-status-evento').value;
+                const cliente = document.getElementById('filtro-cliente-evento').value;
 
                 const params = new URLSearchParams();
                 if (dataInicio) params.append('data_inicio', dataInicio);
                 if (dataFim) params.append('data_fim', dataFim);
                 if (status) params.append('status', status);
+                if (cliente) params.append('cliente', cliente);
+
+                carregarClientesDatalistEvento();
 
                 const url = `/api/eventos?${params.toString()}&_t=${Date.now()}`; // Cache buster
                 console.log('🔄 [DEBUG LOAD] URL:', url);
@@ -11966,7 +11997,7 @@
                 if (!response.ok) {
                     const errData = await response.json().catch(() => ({}));
                     console.error('❌ [EVENTOS] Erro do servidor:', response.status, errData.error || errData);
-                    const _cols1 = window.ocultarMargem ? 8 : 10;
+                    const _cols1 = window.ocultarMargem ? 10 : 12;
                     document.getElementById('tbody-eventos').innerHTML = `<tr><td colspan="${_cols1}" style="text-align: center; color: #e74c3c; padding: 30px;">Erro ${response.status}: ${errData.error || 'Erro ao carregar eventos'}</td></tr>`;
                     return;
                 }
@@ -11994,8 +12025,10 @@
                         return `
                             <tr>
                                 <td>${evt.nome_evento}</td>
+                                <td>${evt.cliente || '-'}</td>
                                 <td>${formatarData(evt.data_evento)}</td>
                                 <td>${evt.nf_associada || '-'}</td>
+                                <td>${evt.valor_bruto_nf ? formatarMoeda(evt.valor_bruto_nf) : '-'}</td>
                                 <td>${evt.valor_liquido_nf ? formatarMoeda(evt.valor_liquido_nf) : '-'}</td>
                                 <td>${evt.custo_evento ? formatarMoeda(evt.custo_evento) : '-'}</td>
                                 ${window.ocultarMargem ? '' : `<td>${evt.margem ? formatarMoeda(evt.margem) : '-'}</td>`}
@@ -12024,12 +12057,12 @@
                         `;
                     }).join('');
                 } else {
-                    const _cols2 = window.ocultarMargem ? 8 : 10;
+                    const _cols2 = window.ocultarMargem ? 10 : 12;
                     tbody.innerHTML = `<tr><td colspan="${_cols2}" style="text-align: center; padding: 30px; color: #999;">Nenhum evento encontrado</td></tr>`;
                 }
             } catch (error) {
                 console.error('Erro ao carregar eventos:', error);
-                const _cols3 = window.ocultarMargem ? 8 : 10;
+                const _cols3 = window.ocultarMargem ? 10 : 12;
                 document.getElementById('tbody-eventos').innerHTML = `<tr><td colspan="${_cols3}" style="text-align: center; color: #e74c3c;">Erro ao carregar dados</td></tr>`;
             }
         }
@@ -12063,7 +12096,27 @@
             document.getElementById('filtro-data-inicio-evento').value = '';
             document.getElementById('filtro-data-fim-evento').value = '';
             document.getElementById('filtro-status-evento').value = '';
+            document.getElementById('filtro-cliente-evento').value = '';
             loadEventos();
+        }
+
+        // Popula o datalist de clientes usado no filtro e no modal de evento
+        let _clientesDatalistEventoCarregado = false;
+        async function carregarClientesDatalistEvento() {
+            if (_clientesDatalistEventoCarregado) return;
+            try {
+                const response = await fetch('/api/clientes', { credentials: 'include' });
+                if (!response.ok) return;
+                const data = await response.json();
+                const clientes = Array.isArray(data) ? data : (data.data || data.clientes || []);
+                const datalist = document.getElementById('datalist-clientes-evento');
+                if (datalist && Array.isArray(clientes)) {
+                    datalist.innerHTML = clientes.map(c => `<option value="${(c.nome || '').replace(/"/g, '&quot;')}"></option>`).join('');
+                    _clientesDatalistEventoCarregado = true;
+                }
+            } catch (error) {
+                console.error('Erro ao carregar clientes para datalist de eventos:', error);
+            }
         }
 
         // ==========================================
