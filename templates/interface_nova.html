@@ -3379,9 +3379,14 @@
                                 <option value="PAGO">Pago</option>
                             </select>
                         </div>
-                        <div style="grid-column:span 2;">
+                        <div>
                             <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Data Pagamento</label>
-                            <input type="date" id="cnf-data-pagamento" style="width:260px; padding:8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+                            <input type="date" id="cnf-data-pagamento" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Anexar PDF</label>
+                            <input type="file" id="cnf-anexo-pdf" accept="application/pdf,.pdf" onchange="_validarAnexoPdfNfse(this)" style="width:100%; padding:6px; border:1px solid #ddd; border-radius:5px; box-sizing:border-box; font-size:12px; background:white;">
+                            <small id="cnf-anexo-pdf-nome" style="display:block; margin-top:3px; color:#666; font-size:11px;"></small>
                         </div>
                         <div style="grid-column:span 2;">
                             <label style="font-size:13px; font-weight:bold; display:block; margin-bottom:4px;">Discriminação</label>
@@ -3390,7 +3395,7 @@
                     </div>
                     <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
                         <button onclick="fecharModalCriarNFSe()" style="padding:10px 24px; background:#95a5a6; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">Cancelar</button>
-                        <button onclick="salvarCriacaoNFSe()" style="padding:10px 24px; background:#27ae60; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">💾 Salvar</button>
+                        <button id="btn-salvar-criacao-nfse" onclick="salvarCriacaoNFSe()" style="padding:10px 24px; background:#27ae60; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">💾 Salvar</button>
                     </div>
                 </div>
             </div>
@@ -9892,6 +9897,7 @@
                         <span style="background:${pgColor}; color:white; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:bold;">${dataPg !== '—' ? dataPg : pg}</span>
                     </td>
                     <td style="padding:9px 12px; text-align:center; white-space:nowrap;">
+                        ${n.tem_anexo ? `<button onclick="abrirAnexoPdfNfse(${n.id})" title="Abrir PDF anexado" style="padding:5px 8px; background:#c0392b; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px; margin-right:4px;">📄</button>` : ''}
                         <button onclick="abrirModalEditarNFSe(${n.id})" style="padding:5px 10px; background:#3498db; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px; margin-right:4px;">✏️ Editar</button>
                         <button onclick="excluirNFSeControle(${n.id})" style="padding:5px 10px; background:#e74c3c; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px;">🗑️ Excluir</button>
                     </td>
@@ -10009,6 +10015,8 @@
             const dp = document.getElementById('cnf-data-pagamento'); if (dp) dp.value = '';
             const sit = document.getElementById('cnf-situacao'); if (sit) sit.value = 'NORMAL';
             const pg  = document.getElementById('cnf-situacao-recebimento'); if (pg) pg.value = 'PENDENTE';
+            const anexo = document.getElementById('cnf-anexo-pdf'); if (anexo) anexo.value = '';
+            const anexoNome = document.getElementById('cnf-anexo-pdf-nome'); if (anexoNome) anexoNome.textContent = '';
             document.getElementById('modal-criar-nfse').style.display = 'block';
         }
 
@@ -10029,6 +10037,16 @@
                 if (typeof showToast === 'function') showToast('⚠️ Valores não podem ser negativos.', 'warning');
                 return;
             }
+            const anexoInput = document.getElementById('cnf-anexo-pdf');
+            const anexoFile = anexoInput && anexoInput.files.length > 0 ? anexoInput.files[0] : null;
+            if (anexoFile && anexoFile.type && anexoFile.type !== 'application/pdf' && !anexoFile.name.toLowerCase().endsWith('.pdf')) {
+                if (typeof showToast === 'function') showToast('⚠️ O anexo precisa ser um arquivo PDF.', 'warning');
+                return;
+            }
+            if (anexoFile && anexoFile.size > 15 * 1024 * 1024) {
+                if (typeof showToast === 'function') showToast('⚠️ O PDF anexado excede o limite de 15MB.', 'warning');
+                return;
+            }
             const payload = {
                 numero_nfse:           document.getElementById('cnf-numero').value || null,
                 data_emissao:          document.getElementById('cnf-data-emissao').value || null,
@@ -10041,6 +10059,8 @@
                 situacao_recebimento:  document.getElementById('cnf-situacao-recebimento').value,
                 data_pagamento:        document.getElementById('cnf-data-pagamento').value || null,
             };
+            const btnSalvar = document.getElementById('btn-salvar-criacao-nfse');
+            if (btnSalvar) btnSalvar.disabled = true;
             try {
                 const resp = await fetch('/api/nfse/criar', {
                     method: 'POST',
@@ -10049,9 +10069,79 @@
                 });
                 const result = await resp.json();
                 if (!result.success) throw new Error(result.error || 'Erro ao criar');
-                if (typeof showToast === 'function') showToast('✅ NFS-e criada com sucesso!', 'success');
+
+                // Se um PDF foi selecionado, anexa à NFS-e recém-criada
+                if (anexoFile && result.id) {
+                    try {
+                        const formData = new FormData();
+                        formData.append('arquivo', anexoFile);
+                        const respAnexo = await fetch(`/api/nfse/${result.id}/anexo`, {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || sessionStorage.getItem('token') || ''}` },
+                            body: formData
+                        });
+                        const resultAnexo = await respAnexo.json();
+                        if (!resultAnexo.success) {
+                            if (typeof showToast === 'function') showToast('⚠️ NFS-e criada, mas houve erro ao anexar o PDF: ' + (resultAnexo.error || ''), 'warning');
+                        } else {
+                            if (typeof showToast === 'function') showToast('✅ NFS-e criada e PDF anexado com sucesso!', 'success');
+                        }
+                    } catch (eAnexo) {
+                        if (typeof showToast === 'function') showToast('⚠️ NFS-e criada, mas houve erro ao anexar o PDF.', 'warning');
+                    }
+                } else {
+                    if (typeof showToast === 'function') showToast('✅ NFS-e criada com sucesso!', 'success');
+                }
+
                 fecharModalCriarNFSe();
                 carregarControleNFSe();
+            } catch (e) {
+                if (typeof showToast === 'function') showToast('❌ ' + e.message, 'error');
+                else alert('Erro: ' + e.message);
+            } finally {
+                if (btnSalvar) btnSalvar.disabled = false;
+            }
+        }
+
+        function _validarAnexoPdfNfse(input) {
+            const label = document.getElementById('cnf-anexo-pdf-nome');
+            if (!label) return;
+            if (!input.files || input.files.length === 0) {
+                label.textContent = '';
+                return;
+            }
+            const file = input.files[0];
+            const ehPdf = (file.type === 'application/pdf') || file.name.toLowerCase().endsWith('.pdf');
+            if (!ehPdf) {
+                label.textContent = '⚠️ Selecione um arquivo PDF.';
+                label.style.color = '#e74c3c';
+                input.value = '';
+                return;
+            }
+            if (file.size > 15 * 1024 * 1024) {
+                label.textContent = '⚠️ Arquivo excede 15MB.';
+                label.style.color = '#e74c3c';
+                input.value = '';
+                return;
+            }
+            label.style.color = '#666';
+            label.textContent = '📎 ' + file.name;
+        }
+
+        async function abrirAnexoPdfNfse(id) {
+            try {
+                const resp = await fetch(`/api/nfse/${id}/anexo`, {
+                    credentials: 'include',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || sessionStorage.getItem('token') || ''}` }
+                });
+                if (!resp.ok) {
+                    let msg = 'Erro ao carregar PDF';
+                    try { const err = await resp.json(); msg = err.error || msg; } catch {}
+                    throw new Error(msg);
+                }
+                const blob = await resp.blob();
+                const url = URL.createObjectURL(blob);
+                window.open(url, '_blank');
             } catch (e) {
                 if (typeof showToast === 'function') showToast('❌ ' + e.message, 'error');
                 else alert('Erro: ' + e.message);

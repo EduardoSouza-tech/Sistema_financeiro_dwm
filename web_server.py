@@ -15942,6 +15942,8 @@ CREATE TABLE IF NOT EXISTS nfse_controle (
     situacao_recebimento VARCHAR(20) DEFAULT 'PENDENTE',
     data_pagamento DATE,
     nfse_baixadas_id INTEGER,
+    anexo_pdf_nome VARCHAR(255),
+    anexo_pdf_dados BYTEA,
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
 """
@@ -15951,6 +15953,9 @@ def _ensure_nfse_controle_table(conn):
     """Cria a tabela nfse_controle e índices se não existirem, e faz commit."""
     with conn.cursor() as cur:
         cur.execute(_NFSE_CONTROLE_CREATE_SQL)
+        # Colunas adicionadas após a criação inicial da tabela (bancos já existentes)
+        cur.execute("ALTER TABLE nfse_controle ADD COLUMN IF NOT EXISTS anexo_pdf_nome VARCHAR(255)")
+        cur.execute("ALTER TABLE nfse_controle ADD COLUMN IF NOT EXISTS anexo_pdf_dados BYTEA")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_nfse_ctrl_empresa ON nfse_controle(empresa_id)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_nfse_ctrl_baixadas ON nfse_controle(empresa_id, nfse_baixadas_id) WHERE nfse_baixadas_id IS NOT NULL")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_nfse_ctrl_emissao ON nfse_controle(empresa_id, data_emissao)")
@@ -15984,7 +15989,8 @@ def listar_nfse_controle():
                            cnpj_prestador, numero_rps, serie_rps,
                            valor_iss, aliquota_iss, valor_deducoes,
                            codigo_servico, protocolo, codigo_verificacao,
-                           data_download, nfse_baixadas_id, provedor
+                           data_download, nfse_baixadas_id, provedor,
+                           anexo_pdf_nome, (anexo_pdf_dados IS NOT NULL) AS tem_anexo
                     FROM nfse_controle
                     WHERE empresa_id = %s
                     ORDER BY data_emissao DESC NULLS LAST
@@ -16409,6 +16415,102 @@ def criar_nfse_manual():
         return jsonify({'success': True, 'id': row['id'], 'message': 'NFS-e criada com sucesso'})
     except Exception as e:
         logger.error(f"Erro ao criar NFS-e manual: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/nfse/<int:nfse_id>/anexo', methods=['POST'])
+@require_auth
+@require_permission('nfse_view')
+def upload_anexo_nfse(nfse_id):
+    """Faz upload do PDF anexado manualmente a uma NFS-e do controle"""
+    try:
+        import psycopg2
+        from database_postgresql import get_nfse_db_params
+
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+
+        if 'arquivo' not in request.files:
+            return jsonify({'success': False, 'error': 'Nenhum arquivo enviado'}), 400
+
+        arquivo = request.files['arquivo']
+        if not arquivo.filename:
+            return jsonify({'success': False, 'error': 'Nenhum arquivo selecionado'}), 400
+
+        extensao = arquivo.filename.rsplit('.', 1)[-1].lower() if '.' in arquivo.filename else ''
+        if extensao != 'pdf':
+            return jsonify({'success': False, 'error': 'Formato inválido. Anexe um arquivo PDF.'}), 400
+
+        pdf_bytes = arquivo.read()
+        if len(pdf_bytes) == 0:
+            return jsonify({'success': False, 'error': 'Arquivo vazio'}), 400
+        if len(pdf_bytes) > 15 * 1024 * 1024:  # 15MB
+            return jsonify({'success': False, 'error': 'Arquivo muito grande (máximo 15MB)'}), 400
+
+        nome_arquivo = os.path.basename(arquivo.filename)[:255]
+
+        db_params = get_nfse_db_params()
+        with psycopg2.connect(**db_params) as conn:
+            _ensure_nfse_controle_table(conn)
+            with conn.cursor() as cur:
+                cur.execute(
+                    """UPDATE nfse_controle
+                       SET anexo_pdf_nome = %s, anexo_pdf_dados = %s
+                       WHERE id = %s AND empresa_id = %s""",
+                    (nome_arquivo, psycopg2.Binary(pdf_bytes), nfse_id, empresa_id)
+                )
+                if cur.rowcount == 0:
+                    return jsonify({'success': False, 'error': 'NFS-e não encontrada'}), 404
+            conn.commit()
+
+        return jsonify({'success': True, 'message': 'PDF anexado com sucesso', 'anexo_pdf_nome': nome_arquivo})
+    except Exception as e:
+        logger.error(f"Erro ao anexar PDF na NFS-e {nfse_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/nfse/<int:nfse_id>/anexo', methods=['GET'])
+@require_auth
+@require_permission('nfse_view')
+def baixar_anexo_nfse(nfse_id):
+    """Retorna o PDF anexado manualmente a uma NFS-e do controle"""
+    try:
+        import psycopg2
+        import psycopg2.extras
+        from database_postgresql import get_nfse_db_params
+
+        usuario = get_usuario_logado()
+        empresa_id = usuario.get('empresa_id')
+        if not empresa_id:
+            return jsonify({'success': False, 'error': 'Empresa não selecionada'}), 403
+
+        db_params = get_nfse_db_params()
+        with psycopg2.connect(**db_params) as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    """SELECT anexo_pdf_nome, anexo_pdf_dados FROM nfse_controle
+                       WHERE id = %s AND empresa_id = %s""",
+                    (nfse_id, empresa_id)
+                )
+                row = cur.fetchone()
+
+        if not row or not row.get('anexo_pdf_dados'):
+            return jsonify({'success': False, 'error': 'Nenhum PDF anexado a esta NFS-e'}), 404
+
+        pdf_bytes = bytes(row['anexo_pdf_dados'])
+        nome_arquivo = row.get('anexo_pdf_nome') or f'NFS-e_{nfse_id}.pdf'
+
+        import io
+        return send_file(
+            io.BytesIO(pdf_bytes),
+            mimetype='application/pdf',
+            as_attachment=False,
+            download_name=nome_arquivo
+        )
+    except Exception as e:
+        logger.error(f"Erro ao baixar anexo da NFS-e {nfse_id}: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
