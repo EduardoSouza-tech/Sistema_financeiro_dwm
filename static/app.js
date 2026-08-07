@@ -5230,7 +5230,7 @@ function renderContratos(contratos) {
             
             // Preparar dados
             const dataInicio = contrato.data_inicio || contrato.data_contrato;
-            const dataFormatada = dataInicio ? new Date(dataInicio).toLocaleDateString('pt-BR') : '-';
+            const dataFormatada = dataInicio ? formatarData(dataInicio) : '-';
             
             // FORÇAR conversão para número antes de formatar
             // valor vem como string "21000.00" do banco, precisa converter primeiro
@@ -8945,7 +8945,7 @@ window.exportarFluxoCaixaPDF = function() {
     
     // Linhas de dados
     transacoes.forEach(t => {
-        const data = t.data_pagamento ? new Date(t.data_pagamento).toLocaleDateString('pt-BR') : '-';
+        const data = t.data_pagamento ? formatarData(t.data_pagamento) : '-';
         const tipo = (t.tipo || '').toLowerCase() === 'receita' ? 'ENTRADA' : 'SAÍDA';
         const tipoClass = (t.tipo || '').toLowerCase() === 'receita' ? 'tipo-receita' : 'tipo-despesa';
         const valor = parseFloat(t.valor).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
