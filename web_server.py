@@ -952,7 +952,60 @@ def login():
         print(f"   - username: {usuario.get('username')}")
         print(f"   - tipo: {usuario.get('tipo')}")
         
-        # Criar sess�o
+        # ============================================================
+        # MULTI-EMPRESA: Carregar empresas do usu�rio ANTES de criar a
+        # sess�o. Se todas as empresas do usu�rio estiverem bloqueadas
+        # (licen�a encerrada / falta de pagamento / contrato encerrado),
+        # o login � negado aqui mesmo - nenhuma sess�o chega a ser criada.
+        # ============================================================
+        empresas_disponiveis = []
+        empresa_selecionada = None
+
+        if usuario['tipo'] == 'admin':
+            # Super admin tem acesso a todas as empresas
+            empresas_disponiveis = database.listar_empresas({})
+            # N�o selecionar empresa automaticamente para super admin
+        else:
+            # Carregar empresas ativas que o usu�rio tem acesso
+            from auth_functions import (
+                listar_empresas_usuario, obter_empresa_padrao,
+                obter_empresas_bloqueadas_usuario, descrever_bloqueio_empresa
+            )
+            empresas_disponiveis = listar_empresas_usuario(usuario['id'], auth_db)
+
+            if not empresas_disponiveis:
+                # Nenhuma empresa ativa dispon�vel - verificar se � porque
+                # a(s) empresa(s) do usu�rio est�(�o) bloqueada(s)
+                empresas_bloqueadas = obter_empresas_bloqueadas_usuario(usuario['id'], auth_db)
+                if empresas_bloqueadas:
+                    empresa_bloqueada = empresas_bloqueadas[0]
+                    print(f"?? [LOGIN] Bloqueado - empresa '{empresa_bloqueada.get('razao_social')}' inativa")
+
+                    auth_db.registrar_log_acesso(
+                        usuario_id=usuario['id'],
+                        acao='login_bloqueado_empresa',
+                        descricao=f"Login bloqueado - empresa {empresa_bloqueada.get('razao_social')} inativa "
+                                  f"(motivo: {empresa_bloqueada.get('motivo_bloqueio')})",
+                        ip_address=request.remote_addr,
+                        sucesso=False
+                    )
+                    print(f"{'='*80}\n")
+
+                    return jsonify({
+                        'success': False,
+                        'error': descrever_bloqueio_empresa({
+                            'ativo': False,
+                            'motivo_bloqueio': empresa_bloqueada.get('motivo_bloqueio'),
+                            'observacao_bloqueio': empresa_bloqueada.get('observacao_bloqueio')
+                        }),
+                        'empresaBloqueada': True,
+                        'empresa_razao_social': empresa_bloqueada.get('razao_social'),
+                        'motivo_bloqueio': empresa_bloqueada.get('motivo_bloqueio'),
+                        'observacao_bloqueio': empresa_bloqueada.get('observacao_bloqueio')
+                    }), 403
+
+        # Empresa n�o bloqueada (ou usu�rio sem nenhum v�nculo/admin) -
+        # prosseguir criando a sess�o normalmente
         print(f"?? Criando sess�o...")
         token = auth_db.criar_sessao(
             usuario['id'],
@@ -960,12 +1013,12 @@ def login():
             request.headers.get('User-Agent', '')
         )
         print(f"? Sess�o criada: {token[:20]}...")
-        
+
         # Guardar token e user_id na sess�o do Flask
         session['session_token'] = token
         session['user_id'] = usuario['id']  # ? Necess�rio para rotas que usam session.get('user_id')
         session.permanent = True
-        
+
         # Registrar login bem-sucedido
         auth_db.registrar_log_acesso(
             usuario_id=usuario['id'],
@@ -974,36 +1027,21 @@ def login():
             ip_address=request.remote_addr,
             sucesso=True
         )
-        
-        # ============================================================
-        # MULTI-EMPRESA: Carregar empresas do usu�rio
-        # ============================================================
-        empresas_disponiveis = []
-        empresa_selecionada = None
-        
-        if usuario['tipo'] == 'admin':
-            # Super admin tem acesso a todas as empresas
-            empresas_disponiveis = database.listar_empresas({})
-            # N�o selecionar empresa automaticamente para super admin
-        else:
-            # Carregar empresas que o usu�rio tem acesso
-            from auth_functions import listar_empresas_usuario, obter_empresa_padrao
-            empresas_disponiveis = listar_empresas_usuario(usuario['id'], auth_db)
-            
-            if empresas_disponiveis:
-                # Buscar empresa padr�o
-                empresa_padrao_id = obter_empresa_padrao(usuario['id'], auth_db)
-                
-                if empresa_padrao_id:
-                    empresa_selecionada = next((e for e in empresas_disponiveis if e.get('empresa_id') == empresa_padrao_id), None)
-                else:
-                    # Se n�o tem padr�o, selecionar a primeira
-                    empresa_selecionada = empresas_disponiveis[0]
-                
-                if empresa_selecionada:
-                    session['empresa_id'] = empresa_selecionada.get('empresa_id')
-                    print(f"? Empresa selecionada no login: {empresa_selecionada.get('razao_social')}")
-        
+
+        if usuario['tipo'] != 'admin' and empresas_disponiveis:
+            # Buscar empresa padr�o
+            empresa_padrao_id = obter_empresa_padrao(usuario['id'], auth_db)
+
+            if empresa_padrao_id:
+                empresa_selecionada = next((e for e in empresas_disponiveis if e.get('empresa_id') == empresa_padrao_id), None)
+            else:
+                # Se n�o tem padr�o, selecionar a primeira
+                empresa_selecionada = empresas_disponiveis[0]
+
+            if empresa_selecionada:
+                session['empresa_id'] = empresa_selecionada.get('empresa_id')
+                print(f"? Empresa selecionada no login: {empresa_selecionada.get('razao_social')}")
+
         # Obter permiss�es do usu�rio
         if usuario['tipo'] == 'admin':
             permissoes = ['*']  # Super admin tem todas as permiss�es

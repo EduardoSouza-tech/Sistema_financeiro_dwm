@@ -786,7 +786,44 @@ def listar_empresas_usuario(usuario_id: int, db) -> List[Dict]:
         return [dict(e) for e in empresas]
 
 
-def vincular_usuario_empresa(usuario_id: int, empresa_id: int, papel: str, 
+def obter_empresas_bloqueadas_usuario(usuario_id: int, db) -> List[Dict]:
+    """
+    Lista as empresas bloqueadas (empresas.ativo = FALSE) as quais o usuário
+    tem vínculo ativo em usuario_empresas.
+
+    Usada no login para detectar quando o usuário não tem NENHUMA empresa
+    disponível porque a(s) empresa(s) dele foram bloqueadas (falta de
+    pagamento, contrato encerrado, etc) - nesse caso o login é negado com
+    uma mensagem detalhada em vez de deixar o usuário "preso" sem empresa.
+
+    Retorna lista de dicts com: empresa_id, razao_social, motivo_bloqueio,
+    observacao_bloqueio, is_empresa_padrao (a empresa padrão do usuário
+    aparece primeiro, se houver mais de uma bloqueada).
+    """
+    with db.get_db_connection(allow_global=True) as conn:
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT
+                e.id AS empresa_id,
+                e.razao_social,
+                e.motivo_bloqueio,
+                e.observacao_bloqueio,
+                ue.is_empresa_padrao
+            FROM empresas e
+            JOIN usuario_empresas ue ON e.id = ue.empresa_id
+            WHERE ue.usuario_id = %s
+            AND ue.ativo = TRUE
+            AND e.ativo = FALSE
+            ORDER BY ue.is_empresa_padrao DESC, e.razao_social
+        """, (usuario_id,))
+
+        empresas = cursor.fetchall()
+        cursor.close()
+        return [dict(e) for e in empresas]
+
+
+def vincular_usuario_empresa(usuario_id: int, empresa_id: int, papel: str,
                              permissoes: List[str], is_padrao: bool, 
                              criado_por: int, db) -> int:
     """

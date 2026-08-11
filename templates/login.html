@@ -454,6 +454,32 @@
         </div>
     </div>
 
+    <!-- Modal de Licença Bloqueada -->
+    <div class="empresa-modal-overlay" id="licenseBlockedOverlay">
+        <div class="empresa-modal" style="max-width: 480px; border-color: rgba(231,76,60,0.5);">
+            <div class="empresa-modal-header" style="background: rgba(231,76,60,0.18); border-bottom-color: rgba(231,76,60,0.35);">
+                <h2>🔒 Acesso Bloqueado</h2>
+                <p style="margin: 5px 0 0 0; font-size: 13px; opacity: 0.9;">A licença desta empresa foi encerrada</p>
+            </div>
+            <div class="empresa-modal-body" style="max-height: none;">
+                <div style="background: rgba(231,76,60,0.12); border: 1px solid rgba(231,76,60,0.35); border-radius: 10px; padding: 18px; margin-bottom: 18px;">
+                    <div style="font-weight:600; color:white; font-size:16px; margin-bottom:12px;" id="blockedEmpresaNome"></div>
+                    <div style="font-size:13px; color:rgba(255,255,255,0.85); margin-bottom:8px;">
+                        <strong>Motivo:</strong> <span id="blockedMotivo"></span>
+                    </div>
+                    <div style="font-size:13px; color:rgba(255,255,255,0.85);" id="blockedObservacaoWrapper">
+                        <strong>Detalhes:</strong> <span id="blockedObservacao"></span>
+                    </div>
+                </div>
+                <p style="font-size:13px; color:rgba(255,255,255,0.85); line-height:1.5; margin-bottom:20px;">
+                    O acesso ao sistema para todos os usuários desta empresa está temporariamente suspenso.
+                    Para reativar, entre em contato com o suporte/financeiro responsável pela sua conta.
+                </p>
+                <button class="btn-confirm-empresa" onclick="closeLicenseBlockedModal()">Entendi</button>
+            </div>
+        </div>
+    </div>
+
     <div class="login-container visible" id="loginContainer">
         <div class="login-header">
             <h1>💼 Sistema Financeiro DWM</h1>
@@ -585,9 +611,13 @@
                             window.location.href = '/';
                         }, 1000);
                     }
+                } else if (result.empresaBloqueada) {
+                    // Licença/empresa bloqueada - não permitir passar do login,
+                    // mostrar aviso detalhado em vez do alerta genérico
+                    showLicenseBlockedModal(result);
                 } else {
                     showAlert(result.error || 'Erro ao fazer login', 'error');
-                    
+
                     // Reabilitar form
                     btnLogin.disabled = false;
                     btnLogin.textContent = 'Entrar';
@@ -627,6 +657,59 @@
                 console.log('Não autenticado');
             }
         });
+
+        // Rótulos amigáveis para o motivo de bloqueio da empresa
+        const MOTIVOS_BLOQUEIO_LABELS = {
+            'pagamento_atrasado': 'Falta de pagamento',
+            'contrato_encerrado': 'Contrato encerrado',
+            'outro': 'Outro motivo'
+        };
+
+        // Mostrar aviso detalhado de licença/empresa bloqueada
+        function showLicenseBlockedModal(details) {
+            document.getElementById('blockedEmpresaNome').textContent = details.empresa_razao_social || 'Sua empresa';
+            document.getElementById('blockedMotivo').textContent =
+                MOTIVOS_BLOQUEIO_LABELS[details.motivo_bloqueio] || 'Não especificado';
+
+            const obsWrapper = document.getElementById('blockedObservacaoWrapper');
+            if (details.observacao_bloqueio) {
+                document.getElementById('blockedObservacao').textContent = details.observacao_bloqueio;
+                obsWrapper.style.display = 'block';
+            } else {
+                obsWrapper.style.display = 'none';
+            }
+
+            // Ocultar login com animação (mesmo padrão do modal de seleção de empresa)
+            const loginContainer = document.querySelector('.login-container');
+            loginContainer.classList.add('hidden');
+            loginContainer.classList.remove('visible');
+
+            setTimeout(() => {
+                const overlay = document.getElementById('licenseBlockedOverlay');
+                overlay.classList.add('show');
+                overlay.style.display = 'flex';
+            }, 300);
+        }
+
+        // Fechar aviso de bloqueio e voltar para o formulário de login
+        function closeLicenseBlockedModal() {
+            const overlay = document.getElementById('licenseBlockedOverlay');
+            overlay.classList.remove('show');
+            setTimeout(() => {
+                overlay.style.display = 'none';
+            }, 300);
+
+            const loginContainer = document.querySelector('.login-container');
+            loginContainer.classList.remove('hidden');
+            loginContainer.classList.add('visible');
+
+            const btnLogin = document.getElementById('btnLogin');
+            btnLogin.disabled = false;
+            btnLogin.textContent = 'Entrar';
+            document.getElementById('username').disabled = false;
+            document.getElementById('password').disabled = false;
+            document.getElementById('password').value = '';
+        }
 
         // Variável para armazenar empresas disponíveis
         let availableEmpresas = [];
