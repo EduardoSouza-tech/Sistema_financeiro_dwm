@@ -1586,9 +1586,17 @@ function formatarMoeda(valor) {
 }
 
 function formatarData(data) {
-    if (!data) return '';
-    const partes = data.split('-');
-    return `${partes[2]}/${partes[1]}/${partes[0]}`;
+    if (!data) return '-';
+    // String YYYY-MM-DD (com ou sem horário/timezone já incluso): usar apenas
+    // a parte de data (evita quebrar quando o backend manda timestamp completo,
+    // ex: "2026-08-11T00:00:00" gerava "11T00:00:00/08/2026" com o split ingênuo)
+    if (typeof data === 'string' && data.match(/^\d{4}-\d{2}-\d{2}/)) {
+        const parts = data.substring(0, 10).split('-');
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    const d = data instanceof Date ? data : new Date(data);
+    if (isNaN(d.getTime())) return '-';
+    return d.toLocaleDateString('pt-BR');
 }
 
 // ===== EXPORTAR FUNÇÕES PARA O ESCOPO GLOBAL =====

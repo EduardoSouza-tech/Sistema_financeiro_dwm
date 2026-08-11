@@ -250,7 +250,16 @@ function renderizarDuplicatasLancamentos(duplicatas) {
  */
 function formatarData(data) {
     if (!data) return '-';
-    const d = new Date(data + 'T00:00:00');
+    // String YYYY-MM-DD (com ou sem horário/timezone já incluso): extrair só a
+    // parte de data e formatar direto, sem concatenar 'T00:00:00' de novo -
+    // isso evitava o bug de "Invalid Date" quando o backend já mandava um
+    // timestamp completo (ex: "2026-08-11T00:00:00").
+    if (typeof data === 'string' && data.match(/^\d{4}-\d{2}-\d{2}/)) {
+        const parts = data.substring(0, 10).split('-');
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    const d = data instanceof Date ? data : new Date(data);
+    if (isNaN(d.getTime())) return '-';
     return d.toLocaleDateString('pt-BR');
 }
 
