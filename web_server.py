@@ -1332,10 +1332,21 @@ def switch_empresa():
         # Super admin pode acessar qualquer empresa
         if usuario['tipo'] != 'admin':
             # Validar se usu�rio tem acesso � empresa
-            from auth_functions import tem_acesso_empresa
+            from auth_functions import tem_acesso_empresa, obter_bloqueio_empresa, descrever_bloqueio_empresa
             print(f"?? Validando acesso do usu�rio � empresa...")
             if not tem_acesso_empresa(usuario['id'], empresa_id, auth_db):
                 print(f"? Acesso negado")
+
+                bloqueio = obter_bloqueio_empresa(empresa_id, auth_db)
+                if bloqueio and not bloqueio['ativo']:
+                    return jsonify({
+                        'success': False,
+                        'error': descrever_bloqueio_empresa(bloqueio),
+                        'empresaBloqueada': True,
+                        'motivo_bloqueio': bloqueio.get('motivo_bloqueio'),
+                        'observacao_bloqueio': bloqueio.get('observacao_bloqueio')
+                    }), 403
+
                 return jsonify({
                     'success': False,
                     'error': 'Acesso negado a esta empresa'
@@ -13781,7 +13792,7 @@ def listar_empresas_api():
         if usuario['tipo'] == 'admin':
             logger.info("   ?? Admin: listando TODAS as empresas")
             
-            query = "SELECT id, razao_social, cnpj, plano, ativo FROM empresas"
+            query = "SELECT id, razao_social, cnpj, plano, ativo, motivo_bloqueio, observacao_bloqueio FROM empresas"
             params = []
             
             # Filtros opcionais
@@ -13812,7 +13823,9 @@ def listar_empresas_api():
                     'razao_social': row['razao_social'],
                     'cnpj': row['cnpj'],
                     'plano': row['plano'],
-                    'ativo': row['ativo']
+                    'ativo': row['ativo'],
+                    'motivo_bloqueio': row['motivo_bloqueio'],
+                    'observacao_bloqueio': row['observacao_bloqueio']
                 })
             
             cursor.close()
@@ -14075,11 +14088,12 @@ def suspender_empresa_api(empresa_id):
         if usuario['tipo'] != 'admin':
             return jsonify({'error': 'Acesso negado'}), 403
         
-        dados = request.json
-        motivo = dados.get('motivo', 'N�o especificado')
-        
-        resultado = database.suspender_empresa(empresa_id, motivo)
-        
+        dados = request.json or {}
+        motivo = dados.get('motivo', 'outro')
+        observacao = dados.get('observacao')
+
+        resultado = database.suspender_empresa(empresa_id, motivo, observacao, usuario.get('username'))
+
         if resultado['success']:
             # Registrar log
             try:

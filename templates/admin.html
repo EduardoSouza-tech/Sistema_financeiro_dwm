@@ -1147,6 +1147,43 @@
         </div>
     </div>
 
+    <!-- Modal: Bloquear Empresa -->
+    <div id="blockCompanyModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🔒 Bloquear Empresa</h3>
+            </div>
+
+            <form id="blockCompanyForm" onsubmit="event.preventDefault(); confirmBlockCompany();">
+                <input type="hidden" id="blockCompanyId">
+
+                <p style="margin: 0 0 16px;">Empresa: <strong id="blockCompanyName"></strong></p>
+                <p style="color: #666; margin: 0 0 16px; font-size: 13px;">
+                    O acesso de todos os usuários desta empresa será bloqueado imediatamente até que ela seja desbloqueada.
+                </p>
+
+                <div class="form-group">
+                    <label>Motivo do bloqueio *</label>
+                    <select id="blockMotivo" class="form-control" required onchange="toggleBlockObservacaoRequired()">
+                        <option value="pagamento_atrasado">Falta de pagamento</option>
+                        <option value="contrato_encerrado">Contrato encerrado</option>
+                        <option value="outro">Outro</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label id="blockObservacaoLabel">Observação</label>
+                    <textarea id="blockObservacao" class="form-control" rows="3" placeholder="Detalhes adicionais sobre o bloqueio (opcional)"></textarea>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" onclick="closeBlockCompanyModal()" class="btn btn-secondary">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">🔒 Confirmar Bloqueio</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Modal: Novo/Editar Acesso Multi-Empresa -->
     <div id="accessModal" class="modal">
         <div class="modal-content">
@@ -1563,10 +1600,26 @@
                 
                 const tr = document.createElement('tr');
                 const statusBadge = company.ativo ? 'badge-active' : 'badge-inactive';
-                
+
+                const MOTIVOS_BLOQUEIO_LABELS = {
+                    'pagamento_atrasado': 'Falta de pagamento',
+                    'contrato_encerrado': 'Contrato encerrado',
+                    'outro': 'Outro motivo'
+                };
+
+                let statusHtml = `<span class="badge ${statusBadge}">${company.ativo ? 'Ativo' : '🔒 Bloqueada'}</span>`;
+                if (!company.ativo && company.motivo_bloqueio) {
+                    const motivoLabel = MOTIVOS_BLOQUEIO_LABELS[company.motivo_bloqueio] || 'Motivo não especificado';
+                    statusHtml += `<br><small style="color:#c0392b;">${motivoLabel}</small>`;
+                }
+
+                const bloqueioBtn = company.ativo
+                    ? `<button onclick="openBlockCompanyModal(${company.id})" class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;">🔒 Bloquear</button>`
+                    : `<button onclick="unblockCompany(${company.id})" class="btn btn-success" style="padding: 5px 10px; font-size: 12px;">🔓 Desbloquear</button>`;
+
                 // Contar usuários desta empresa
                 const userCount = allUsers.filter(u => u.empresa_id === company.id).length;
-                
+
                 tr.innerHTML = `
                     <td>${company.id}</td>
                     <td><strong>${company.razao_social}</strong></td>
@@ -1574,10 +1627,11 @@
                     <td>${company.email}</td>
                     <td>${company.plano || 'básico'}</td>
                     <td>${userCount}</td>
-                    <td><span class="badge ${statusBadge}">${company.ativo ? 'Ativo' : 'Inativo'}</span></td>
+                    <td>${statusHtml}</td>
                     <td>
                         <button onclick="editCompany(${company.id})" class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;">✏️ Editar</button>
                         <button onclick="openImportForCompany(${company.id}, '${company.razao_social}')" class="btn" style="padding: 5px 10px; font-size: 12px; background: #9b59b6; color: white;">📥 Importar BD</button>
+                        ${bloqueioBtn}
                         <button onclick="deleteCompany(${company.id})" class="btn btn-danger" style="padding: 5px 10px; font-size: 12px;">🗑️ Excluir</button>
                     </td>
                 `;
@@ -1757,6 +1811,110 @@
         // Fechar modal de empresa
         function closeCompanyModal() {
             document.getElementById('companyModal').classList.remove('active');
+        }
+
+        // ===================================================================
+        // BLOQUEIO DE EMPRESA (falta de pagamento / contrato encerrado)
+        // ===================================================================
+
+        function toggleBlockObservacaoRequired() {
+            const motivo = document.getElementById('blockMotivo').value;
+            const observacao = document.getElementById('blockObservacao');
+            const label = document.getElementById('blockObservacaoLabel');
+            if (motivo === 'outro') {
+                observacao.required = true;
+                label.textContent = 'Observação * (obrigatória para "Outro")';
+            } else {
+                observacao.required = false;
+                label.textContent = 'Observação';
+            }
+        }
+
+        function openBlockCompanyModal(companyId) {
+            const company = allCompanies.find(c => c.id === companyId);
+            if (!company) {
+                showAlert('Empresa não encontrada', 'error');
+                return;
+            }
+
+            document.getElementById('blockCompanyId').value = companyId;
+            document.getElementById('blockCompanyName').textContent = company.razao_social;
+            document.getElementById('blockMotivo').value = 'pagamento_atrasado';
+            document.getElementById('blockObservacao').value = '';
+            toggleBlockObservacaoRequired();
+
+            document.getElementById('blockCompanyModal').classList.add('active');
+        }
+
+        function closeBlockCompanyModal() {
+            document.getElementById('blockCompanyModal').classList.remove('active');
+        }
+
+        async function confirmBlockCompany() {
+            const companyId = document.getElementById('blockCompanyId').value;
+            const motivo = document.getElementById('blockMotivo').value;
+            const observacao = document.getElementById('blockObservacao').value.trim();
+
+            if (motivo === 'outro' && !observacao) {
+                showAlert('Descreva o motivo do bloqueio no campo Observação', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/empresas/${companyId}/suspender`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ motivo, observacao: observacao || null })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    showAlert('Empresa bloqueada com sucesso. O acesso foi revogado para todos os usuários.', 'success');
+                    closeBlockCompanyModal();
+                    await loadCompanies();
+                } else {
+                    showAlert(data.error || 'Erro ao bloquear empresa', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao bloquear empresa:', error);
+                showAlert('Erro ao bloquear empresa', 'error');
+            }
+        }
+
+        async function unblockCompany(companyId) {
+            const company = allCompanies.find(c => c.id === companyId);
+            const nome = company ? company.razao_social : `#${companyId}`;
+
+            if (!confirm(`Desbloquear o acesso da empresa "${nome}"?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/empresas/${companyId}/reativar`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    showAlert('Empresa desbloqueada com sucesso.', 'success');
+                    await loadCompanies();
+                } else {
+                    showAlert(data.error || 'Erro ao desbloquear empresa', 'error');
+                }
+            } catch (error) {
+                console.error('Erro ao desbloquear empresa:', error);
+                showAlert('Erro ao desbloquear empresa', 'error');
+            }
         }
 
         // ===================================================================

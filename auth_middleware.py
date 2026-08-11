@@ -103,10 +103,23 @@ def require_auth(f):
                         }), 403
 
                 # Validar se usuário tem acesso à empresa
-                from auth_functions import tem_acesso_empresa
+                from auth_functions import tem_acesso_empresa, obter_bloqueio_empresa, descrever_bloqueio_empresa
                 if not tem_acesso_empresa(usuario['id'], empresa_id, auth_db):
                     log(f"[require_auth] Usuario {usuario['username']} sem acesso a empresa {empresa_id}")
                     # NÃO apagar da sessão: pode ser só esta aba com empresa_id inválido
+
+                    # Verificar se o motivo é a empresa estar bloqueada, para dar uma mensagem clara
+                    bloqueio = obter_bloqueio_empresa(empresa_id, auth_db)
+                    if bloqueio and not bloqueio['ativo']:
+                        return jsonify({
+                            'success': False,
+                            'error': descrever_bloqueio_empresa(bloqueio),
+                            'empresaBloqueada': True,
+                            'motivo_bloqueio': bloqueio.get('motivo_bloqueio'),
+                            'observacao_bloqueio': bloqueio.get('observacao_bloqueio'),
+                            'requireEmpresaSelection': True
+                        }), 403
+
                     return jsonify({
                         'success': False,
                         'error': 'Acesso negado a esta empresa',

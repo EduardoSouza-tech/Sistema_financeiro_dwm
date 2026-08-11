@@ -929,25 +929,87 @@ def atualizar_usuario_empresa(usuario_id: int, empresa_id: int,
 
 
 def tem_acesso_empresa(usuario_id: int, empresa_id: int, db) -> bool:
-    """Verifica se usuário tem acesso à empresa"""
+    """
+    Verifica se usuário tem acesso à empresa.
+
+    Exige tanto o vínculo usuario_empresas ativo quanto a própria empresa
+    estar ativa - uma empresa bloqueada (falta de pagamento, contrato
+    encerrado, etc.) nega acesso mesmo que o vínculo do usuário exista.
+    """
     conn = db.get_connection()
     cursor = conn.cursor()
-    
+
     try:
         cursor.execute("""
             SELECT COUNT(*) as count
-            FROM usuario_empresas
-            WHERE usuario_id = %s 
-            AND empresa_id = %s 
-            AND ativo = TRUE
+            FROM usuario_empresas ue
+            JOIN empresas e ON e.id = ue.empresa_id
+            WHERE ue.usuario_id = %s
+            AND ue.empresa_id = %s
+            AND ue.ativo = TRUE
+            AND e.ativo = TRUE
         """, (usuario_id, empresa_id))
-        
+
         result = cursor.fetchone()
         return result['count'] > 0 if result else False
-        
+
     finally:
         cursor.close()
         conn.close()
+
+
+def obter_bloqueio_empresa(empresa_id: int, db) -> Optional[Dict]:
+    """
+    Retorna o status de bloqueio de uma empresa.
+
+    Returns:
+        dict: {'ativo', 'motivo_bloqueio', 'observacao_bloqueio'} ou None se a empresa não existir
+    """
+    conn = db.get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            SELECT ativo, motivo_bloqueio, observacao_bloqueio
+            FROM empresas
+            WHERE id = %s
+        """, (empresa_id,))
+
+        result = cursor.fetchone()
+        if not result:
+            return None
+
+        return {
+            'ativo': result['ativo'],
+            'motivo_bloqueio': result['motivo_bloqueio'],
+            'observacao_bloqueio': result['observacao_bloqueio']
+        }
+
+    finally:
+        cursor.close()
+        conn.close()
+
+
+MOTIVOS_BLOQUEIO_LABELS = {
+    'pagamento_atrasado': 'Falta de pagamento',
+    'contrato_encerrado': 'Contrato encerrado',
+    'outro': 'Outro motivo'
+}
+
+
+def descrever_bloqueio_empresa(bloqueio: Optional[Dict]) -> str:
+    """Monta uma mensagem amigável a partir do dict retornado por obter_bloqueio_empresa"""
+    if not bloqueio:
+        return 'Empresa bloqueada'
+
+    motivo = bloqueio.get('motivo_bloqueio')
+    label = MOTIVOS_BLOQUEIO_LABELS.get(motivo, 'Motivo não especificado')
+    observacao = bloqueio.get('observacao_bloqueio')
+
+    mensagem = f'Acesso bloqueado: {label}'
+    if observacao:
+        mensagem += f' - {observacao}'
+    return mensagem
 
 
 def obter_empresa_padrao(usuario_id: int, db) -> Optional[int]:

@@ -8860,7 +8860,8 @@ def atualizar_empresa(empresa_id, dados):
                 'razao_social', 'nome_fantasia', 'cnpj', 'email', 'telefone', 'whatsapp',
                 'endereco', 'cidade', 'estado', 'cep', 'plano',
                 'max_usuarios', 'max_clientes', 'max_lancamentos_mes', 'espaco_storage_mb',
-                'observacoes', 'ativo'
+                'observacoes', 'ativo',
+                'motivo_bloqueio', 'observacao_bloqueio', 'data_bloqueio', 'bloqueado_por'
             ]
             
             for campo in campos_permitidos:
@@ -8996,38 +8997,44 @@ def listar_empresas(filtros=None):
         return []
 
 
-def suspender_empresa(empresa_id, motivo):
+def suspender_empresa(empresa_id, motivo, observacao=None, bloqueado_por=None):
     """
-    Suspende uma empresa (desativa)
-    
+    Bloqueia o acesso de uma empresa (desativa)
+
     Args:
         empresa_id: ID da empresa
-        motivo: Motivo da suspensi?o
-    
+        motivo: Codigo do motivo do bloqueio ('pagamento_atrasado', 'contrato_encerrado', 'outro')
+        observacao: Observacao livre sobre o bloqueio (opcional)
+        bloqueado_por: Usuario admin que aplicou o bloqueio (opcional)
+
     Returns:
         dict: {'success': True/False, 'error': msg}
     """
     return atualizar_empresa(empresa_id, {
         'ativo': False,
-        'data_suspensao': datetime.now(),
-        'motivo_suspensao': motivo
+        'data_bloqueio': datetime.now(),
+        'motivo_bloqueio': motivo,
+        'observacao_bloqueio': observacao,
+        'bloqueado_por': bloqueado_por
     })
 
 
 def reativar_empresa(empresa_id):
     """
-    Reativa uma empresa suspensa
-    
+    Reativa uma empresa bloqueada, restaurando o acesso
+
     Args:
         empresa_id: ID da empresa
-    
+
     Returns:
         dict: {'success': True/False, 'error': msg}
     """
     return atualizar_empresa(empresa_id, {
         'ativo': True,
-        'data_suspensao': None,
-        'motivo_suspensao': None
+        'data_bloqueio': None,
+        'motivo_bloqueio': None,
+        'observacao_bloqueio': None,
+        'bloqueado_por': None
     })
 
 
