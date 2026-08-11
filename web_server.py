@@ -1094,38 +1094,50 @@ def login():
 
 
 @app.route('/api/auth/logout', methods=['POST'])
-@require_auth
 def logout():
-    """Endpoint de logout"""
-    try:
-        token = session.get('session_token')
-        
-        if token:
+    """
+    Endpoint de logout.
+
+    Propositalmente SEM @require_auth: logout precisa funcionar sempre,
+    mesmo quando a empresa atualmente selecionada pelo usuario foi
+    bloqueada (falta de pagamento, contrato encerrado). Se dependesse de
+    @require_auth, a checagem de empresa bloqueada barraria o proprio
+    logout com 403 antes de invalidar a sessao - o usuario ficaria preso
+    e a tela de login o "relogaria" automaticamente, pois a sessao nunca
+    teria sido de fato encerrada no servidor.
+
+    Por isso cada etapa (invalidar token, registrar log) e' protegida
+    individualmente: mesmo que uma falhe, a sessao Flask ainda e' limpa
+    e a resposta ainda e' de sucesso - do ponto de vista do usuario,
+    "Sair" sempre tem que funcionar.
+    """
+    token = session.get('session_token')
+    usuario_id = session.get('user_id')
+
+    if token:
+        try:
             auth_db.invalidar_sessao(token)
-            
-            # Registrar logout
-            usuario = request.usuario
-            auth_db.registrar_log_acesso(
-                usuario_id=usuario['id'],
-                acao='logout',
-                descricao='Logout realizado',
-                ip_address=request.remote_addr,
-                sucesso=True
-            )
-        
-        session.clear()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Logout realizado com sucesso'
-        })
-        
-    except Exception as e:
-        print(f"? Erro no logout: {e}")
-        return jsonify({
-            'success': False,
-            'error': 'Erro ao processar logout'
-        }), 500
+        except Exception as e:
+            print(f"? Erro ao invalidar sessao no logout: {e}")
+
+        if usuario_id:
+            try:
+                auth_db.registrar_log_acesso(
+                    usuario_id=usuario_id,
+                    acao='logout',
+                    descricao='Logout realizado',
+                    ip_address=request.remote_addr,
+                    sucesso=True
+                )
+            except Exception as e:
+                print(f"? Erro ao registrar log de logout: {e}")
+
+    session.clear()
+
+    return jsonify({
+        'success': True,
+        'message': 'Logout realizado com sucesso'
+    })
 
 
 @app.route('/api/auth/verify', methods=['GET'])

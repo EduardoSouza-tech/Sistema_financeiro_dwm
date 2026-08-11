@@ -8766,9 +8766,16 @@
                 await fetchWithCSRF('/api/auth/logout', {
                     method: 'POST'
                 });
-                window.location.href = '/login';
             } catch (error) {
                 console.error('Erro ao fazer logout:', error);
+            } finally {
+                // Limpar estado local da aba independente do resultado da requisição,
+                // para nunca deixar dados da sessão anterior (empresa, usuário) visíveis
+                // caso outra pessoa faça login nesta mesma aba em seguida.
+                sessionStorage.removeItem('usuario');
+                sessionStorage.removeItem('empresa_id');
+                sessionStorage.removeItem('token');
+                localStorage.removeItem('token');
                 window.location.href = '/login';
             }
         }
