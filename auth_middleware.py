@@ -281,7 +281,32 @@ def require_permission(permission_code: str):
                     'success': False,
                     'error': 'Empresa não selecionada'
                 }), 403
-            
+
+            # 🔒 Verificar se a empresa está ativa (não bloqueada por falta de
+            # pagamento, contrato encerrado, etc). Sem essa checagem, uma
+            # empresa bloqueada continuaria acessível por qualquer rota que
+            # use @require_permission (a maioria das rotas de dados do sistema).
+            from auth_functions import tem_acesso_empresa, obter_bloqueio_empresa, descrever_bloqueio_empresa
+            if not tem_acesso_empresa(usuario['id'], empresa_id, auth_db):
+                print(f"❌ [PERMISSION CHECK] Usuario {usuario['username']} sem acesso a empresa {empresa_id}")
+
+                bloqueio = obter_bloqueio_empresa(empresa_id, auth_db)
+                if bloqueio and not bloqueio['ativo']:
+                    return jsonify({
+                        'success': False,
+                        'error': descrever_bloqueio_empresa(bloqueio),
+                        'empresaBloqueada': True,
+                        'motivo_bloqueio': bloqueio.get('motivo_bloqueio'),
+                        'observacao_bloqueio': bloqueio.get('observacao_bloqueio'),
+                        'requireEmpresaSelection': True
+                    }), 403
+
+                return jsonify({
+                    'success': False,
+                    'error': 'Acesso negado a esta empresa',
+                    'requireEmpresaSelection': True
+                }), 403
+
             # Buscar permissões da empresa (não permissões globais)
             from auth_functions import obter_permissoes_usuario_empresa
             permissoes = obter_permissoes_usuario_empresa(usuario['id'], empresa_id, auth_db)
@@ -361,12 +386,38 @@ def aplicar_filtro_cliente(f):
             request.filtro_cliente_id = None  # Admin vê tudo
             print(f"   🔓 Admin: SEM filtros (acesso total)")
         else:
-            request.filtro_cliente_id = usuario.get('empresa_id') or usuario.get('cliente_id')  # Fallback temporário
+            empresa_id = usuario.get('empresa_id') or usuario.get('cliente_id')  # Fallback temporário
+
+            # 🔒 Empresa bloqueada (falta de pagamento, contrato encerrado, etc)
+            # nao deve liberar dados mesmo que a sessao ainda aponte para ela
+            if empresa_id:
+                from auth_functions import tem_acesso_empresa, obter_bloqueio_empresa, descrever_bloqueio_empresa
+                if not tem_acesso_empresa(usuario['id'], empresa_id, auth_db):
+                    print(f"   ❌ Empresa {empresa_id} sem acesso (bloqueada ou vinculo inativo)")
+
+                    bloqueio = obter_bloqueio_empresa(empresa_id, auth_db)
+                    if bloqueio and not bloqueio['ativo']:
+                        return jsonify({
+                            'success': False,
+                            'error': descrever_bloqueio_empresa(bloqueio),
+                            'empresaBloqueada': True,
+                            'motivo_bloqueio': bloqueio.get('motivo_bloqueio'),
+                            'observacao_bloqueio': bloqueio.get('observacao_bloqueio'),
+                            'requireEmpresaSelection': True
+                        }), 403
+
+                    return jsonify({
+                        'success': False,
+                        'error': 'Acesso negado a esta empresa',
+                        'requireEmpresaSelection': True
+                    }), 403
+
+            request.filtro_cliente_id = empresa_id
             print(f"   🔒 Empresa ID {request.filtro_cliente_id}: Apenas dados próprios")
-        
+
         # Adicionar usuário ao request
         request.usuario = usuario
-        
+
         return f(*args, **kwargs)
     
     return decorated_function
